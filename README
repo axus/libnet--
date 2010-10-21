@@ -1,1 +1,3 @@
-libnet++: Network communication library for C++
+libnet--: Network communication library for C++
+
+Originally I called it libnet++, but github had a much funnier name in mind.
