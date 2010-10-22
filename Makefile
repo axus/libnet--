@@ -1,17 +1,20 @@
 # Project: net-- library
 
 BIN = libnet--.a
-SRCFILES = netbase.cpp netpacket.cpp netserver.cpp netclient.cpp
-
+SRCFILES = netpacket.cpp netbase.cpp netclient.cpp netserver.cpp
+HEADERS = netpacket.h netbase.h netclient.h netserver.h
 #Build rules for a library in MinGW
 include src/lib.MinGW.mak
 
 #What to do for make install
-install:
-	cp src/netpacket.h .
-	cp src/netbase.h .
-	cp src/netclient.h .
-	cp src/netserver.h .
+INSTALL_INCLUDE = ../include
+INSTALL_LIB = ../lib
 
+install:
+	cp $(addprefix $(SRCDIR)/, $(HEADERS)) $(INSTALL_INCLUDE)/
+	cp $(BIN) $(INSTALL_LIB)/
+
+#How to uninstall
 uninstall:
-	rm netpacket.h netbase.h netclient.h netserver.h libnet--.a
+	-rm $(addprefix $(INSTALL_INCLUDE)/, $(HEADERS))
+	-rm $(INSTALL_LIB)/$(BIN)
