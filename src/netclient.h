@@ -12,9 +12,8 @@ public:
     ~netClient();
 
     //Network functions
-    int doConnect( const string& address, int remotePort, int localPort = 0);
+    int doConnect( const std::string& address, int remotePort, int localPort = 0);
     int doDisconnect();
-    int sendMessage( short i, short len, unsigned char* d, short ver=NET_MSG_VERSION);
     int run();      //Look for incoming messages
     bool setConnTimeout( int seconds=3, int microsec=0);
 

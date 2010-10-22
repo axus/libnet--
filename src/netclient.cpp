@@ -1,5 +1,6 @@
 #include "netClient.h"
 
+using std::string;
 using std::endl;
 
 //
@@ -162,6 +163,8 @@ int netClient::doDisconnect()
 {
     int result = 0;
 
+    static char quitMessage[8] = "exit";
+
     openLog();
     if (sdServer != (int)INVALID_SOCKET) {
         
@@ -169,7 +172,8 @@ int netClient::doDisconnect()
         if (ready) {
         
             //Send explicit disconnect message to server
-            sendMessage( NET_DISCONNECT_ID, 0, NULL, NET_CB_VERSION);
+            netpacket pkt( 8, (unsigned char*)quitMessage);
+            sendMessage( sdServer, pkt);
         
             debugLog << "Closing socket " << sdServer << endl;
             lastError = lastError + string("; Closing socket");
@@ -185,16 +189,6 @@ int netClient::doDisconnect()
     closeLog();
     return result;
 }
-
-
-//Send message to the server (use socket sdServer)
-int netClient::sendMessage( short i, short len, unsigned char* d, short ver) {
-    netpacket nmsg;
-    nmsg.create(sdServer, i, ++lastMessage, len, d, ver);
-
-    return netbase::sendMessage( nmsg);
-}
-
 
 //Read the network, handle any incoming data
 int netClient::run()
