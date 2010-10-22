@@ -1,13 +1,13 @@
-#include "netClient.h"
+#include "netclient.h"
 
 using std::string;
 using std::endl;
 
 //
-//  netClient function implementations
+//  netclient function implementations
 //
 
-netClient::netClient() : netbase( 1), sdServer((int)INVALID_SOCKET), serverPort(-1)
+netclient::netclient() : netbase( 1), sdServer((int)INVALID_SOCKET), serverPort(-1)
 {
     openLog();
     debugLog << "===Starting client===" << endl;
@@ -17,7 +17,7 @@ netClient::netClient() : netbase( 1), sdServer((int)INVALID_SOCKET), serverPort(
     connTimeout.tv_usec = 0;
 }
 
-netClient::~netClient()
+netclient::~netclient()
 {
     openLog();
     debugLog << "===Ending client===" << endl << endl;
@@ -28,7 +28,7 @@ netClient::~netClient()
     //Now the base class destructor is invoked by C++
 }
 
-bool netClient::setConnTimeout( int seconds, int microsec)
+bool netclient::setConnTimeout( int seconds, int microsec)
 {
     //TODO: make sure the input is reasonable
 
@@ -40,7 +40,7 @@ bool netClient::setConnTimeout( int seconds, int microsec)
 
 
 //connect to server "address:port"
-int netClient::doConnect(const string& serverAddress, int port, int lport)
+int netclient::doConnect(const string& serverAddress, int port, int lport)
 {
 	struct	sockaddr_in sad;   //Server address struct
 	int rv;                    //Return value
@@ -141,7 +141,7 @@ int netClient::doConnect(const string& serverAddress, int port, int lport)
 }
 
 //Inherited function for closing a network socket
-int netClient::closeSocket( int sd)
+int netclient::closeSocket( int sd)
 {
     int rv;
 
@@ -159,7 +159,7 @@ int netClient::closeSocket( int sd)
 }
 
 //Disconnect from the server... May or may not actually be connected
-int netClient::doDisconnect()
+int netclient::doDisconnect()
 {
     int result = 0;
 
@@ -191,7 +191,7 @@ int netClient::doDisconnect()
 }
 
 //Read the network, handle any incoming data
-int netClient::run()
+int netclient::run()
 {
     int rv;
 

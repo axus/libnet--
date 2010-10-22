@@ -1,15 +1,15 @@
 //netClient.h
+//  See netbase.h for base functions
 
 #ifndef NETCLIENT_H
 #define NETCLIENT_H
 
-
 #include "netbase.h"
-class netClient : public netbase {
+class netclient : public netbase {
 
 public:
-    netClient();
-    ~netClient();
+    netclient();
+    ~netclient();
 
     //Network functions
     int doConnect( const std::string& address, int remotePort, int localPort = 0);
