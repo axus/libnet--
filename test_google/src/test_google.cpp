@@ -1,4 +1,5 @@
-
+//Send HTTP request to Google, print the raw text
+//  (test program for libnet--)
 #include <netclient.h>
 #include <cstdio>
 #include <string>
