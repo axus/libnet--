@@ -6,3 +6,9 @@
 #       build-msys.sh clean
 
 make $@
+cd test_client
+make $@
+cd ..
+cd test_http
+make $@
+cd ..
