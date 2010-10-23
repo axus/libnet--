@@ -134,6 +134,10 @@ bool netbase::isConnected() const {
     return ready;
 }
 
+//See if socket is still in connection set
+bool netbase::isClosed(int sd) const {
+    return (conSet.count(sd) == 0);
+}
 
 //Send packet on a socket descriptor 'sd'
 int netbase::sendPacket( int sd, netpacket &msg) {
@@ -244,11 +248,12 @@ int netbase::buildSocketSet()
     std::set<int>::const_iterator iter;
 
     FD_ZERO( &sdSet );
-    for (iter = conSet.begin(); iter != conSet.end(); iter++)
+    for (iter = conSet.begin(); iter != conSet.end(); iter++) {
         FD_SET( (unsigned int)(*iter), &sdSet);
+    }
 
-    return 0;
-
+    //Return number of sockets in set
+    return conSet.size();
 }
 
 
@@ -264,8 +269,9 @@ int netbase::closeSocket(int sd)
     }
 
     rv = closesocket(sd);
-    if (rv == SOCKET_ERROR)
+    if (rv == SOCKET_ERROR) {
         debugLog << "Error closing socket " << sd << ":" << getSocketError() << endl;
+    }
 
     //Remove this socket from the list of connected sockets
     conSet.erase(sd);
@@ -280,8 +286,13 @@ int netbase::readIncomingSockets() {
 
     int rv=0;
     
-    //Rebuild the client set, check for incoming data
-    buildSocketSet();
+    //Rebuild the socket set, check for incoming data
+    if (buildSocketSet() == 0) {
+        debugLog << "No connections to read" << endl;
+        return 0;
+    }
+    
+    //Check socket set for waiting data, until timeout passes
     rv = select(sdMax+1, &sdSet, (fd_set *) 0, (fd_set *) 0, &timeout);
 
     if (rv == SOCKET_ERROR) {   //Socket select failed
@@ -315,6 +326,8 @@ int netbase::readSockets()
             //Data pending from client, get the message (or disconnect)
             size_t startIndex = myIndex;
             rv = recvSocket( con, (myBuffer + startIndex) );
+            
+            //Point packet object at received bytes
             if ( rv > 0 ) {
             
                 //Read from buffer into new packet object (don't forget to delete it)
@@ -325,19 +338,6 @@ int netbase::readSockets()
                 
                 //Add packet to the queue
                 packets.push_back( pkt);
-            }
-            else {
-                //Call associated disconnect callback right away
-                map< int, disconnectFP >::const_iterator dcb_iter;
-                dcb_iter = disconnectCB_map.find(con);
-                if ( dcb_iter != disconnectCB_map.end() ) {
-                    //Call the disconnection callback, with mapped void *data
-                    disconnectFP dcFunc = (*dcb_iter).second;
-                    dcFunc( con, disconnectCBD_map.find(con)->second);
-                }
-                else {
-                    debugLog << "Client quit, no callback for disconnect" << endl;
-                }
             }
         }
     }
@@ -382,6 +382,26 @@ int netbase::readSockets()
         }
     }
 
+    //Handle disconnected sockets (could happen immediately after receiving bytes)
+    for (con_iter = socketSet.begin(); con_iter != socketSet.end(); con_iter++) {
+        con = *con_iter;
+    
+        if (isClosed(con)) {
+            //Call associated disconnect callback right away
+            map< int, disconnectFP >::const_iterator dcb_iter;
+            dcb_iter = disconnectCB_map.find(con);
+            if ( dcb_iter != disconnectCB_map.end() ) {
+                //Call the disconnection callback, with mapped void *data
+                disconnectFP dcFunc = (*dcb_iter).second;
+                dcFunc( con, disconnectCBD_map.find(con)->second);
+            }
+            else {
+                debugLog << "Socket #" << con << " closed, no callback" << endl;
+            }
+        }
+    }
+
+
     //Delete the dynamically created packet objects (but not what they point to)
     for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter++) {
         delete (*pkt_iter);
@@ -398,6 +418,7 @@ int netbase::readSockets()
 
 
 //Recieve incoming data on a buffer, return the number of bytes read in
+//Check if socket is closed after receiving
 int netbase::recvSocket(int sd, unsigned char* buffer)
 {
     int rv, rs;
@@ -415,7 +436,9 @@ int netbase::recvSocket(int sd, unsigned char* buffer)
         if (rv == 0) {
             debugLog << "Socket " << sd << " disconnected" << endl;
             closeSocket(sd);
-            return 0;
+            rs=0;   //Disconnected, nothing more to receive...
+            //If we got anything on an earlier loop iteration, will need to process it.
+            break;
         }
         
         //Check for reset socket, which we treat as normal disconnect since we are lazy
@@ -448,7 +471,7 @@ int netbase::recvSocket(int sd, unsigned char* buffer)
     myIndex += offset;
     debugLog << "Received " << offset << " bytes on socket " << sd << endl;
 
-    return rv;
+    return offset;  //Return total number of bytes received
 }
 
 //Default functions for function pointers

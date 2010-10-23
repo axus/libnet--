@@ -194,16 +194,19 @@ int netclient::doDisconnect()
 //Read the network, handle any incoming data
 int netclient::run()
 {
-    int rv;
+    int rv = 0;
 
     try {
         //RECEIVE DATA ON ALL INCOMING CONNECTIONS
-        rv = readIncomingSockets();
+        if (conSet.size() > 0) {
+            rv = readIncomingSockets();
+        }
     }
     catch(...) {
         debugLog << "Unhandled exception!!" << endl;
         rv = -1;
     };
+    debugLog << "run..." << std::flush;
 
     return rv;
 }

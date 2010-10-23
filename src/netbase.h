@@ -64,6 +64,7 @@ public:
 
     //const functions
     bool isConnected() const;
+    bool isClosed(int sd) const;   //Is socket closed?
 
     //Send packet "pkt" on socket "sd"
     int sendPacket( int sd, netpacket &pkt);

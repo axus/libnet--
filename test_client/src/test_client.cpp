@@ -27,12 +27,17 @@ int main (int argc, char *argv[])
   
     string server = "localhost";
     const short port = 80, lport = 13371;
-    const string http_request("GET /index.html HTTP/1.1\r\n\r\n");
+    string http_request("GET / HTTP/1.1\r\n");
 
     //Command line option
     if (argc > 1) {
         server = argv[1];
     }
+    
+    //Complete http_request with Host
+    http_request.append( "Host: ");
+    http_request.append( server );
+    http_request.append( "\r\n\r\n");
 
     //Create client
     netclient Client;
@@ -63,12 +68,21 @@ int main (int argc, char *argv[])
     while (passedtime < timeouttime) {
         Sleep(sleepytime);
         rv = Client.run();
-        if (rv == 0) {
+
+        if (rv == SOCKET_ERROR) {
+            cout << "Socket error: " << Client.lastError << endl;
+            break;
+        }
+        else if (rv == 0) {
+            //Nothing happened, increment passedtime
             passedtime += sleepytime;
+        } else {
+            //Packets were processed, restart timeout
+            passedtime = 0;
         }
     }
 
-    //Client.doDisconnect();
+    Client.doDisconnect();
     
     return connection;
 }
