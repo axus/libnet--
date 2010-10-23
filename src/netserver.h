@@ -7,6 +7,10 @@
 //          handle client connections, etc.
 //
 
+//
+//  Remember that sockets are stream based... the second half of a message may be delayed!
+//
+
 #include "netbase.h"
 
 //
@@ -21,8 +25,6 @@ public:
     int openPort(short port);   //open *port*, return socket descriptor
     void closePort();        //close the server (and server.log)
     int run();         //Check the network: read sockets, handle callbacks
-
-    //netPktCB ; //message processing callback type
 
 protected:
     fd_set listenSet;   //set of port listening file descriptors
