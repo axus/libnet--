@@ -19,7 +19,7 @@ class netpacket {
 
 	   //Default packet allocates 1024 bytes, 0 length.  append() more to increase length.
         netpacket( ):
-                maxsize(DEFAULT_PACKET_SIZE), length(0), data(0), delete_data(true), ID(0)
+                maxsize(DEFAULT_PACKET_SIZE), length(0), data(NULL), delete_data(true), ID(0)
                     { data = new unsigned char[DEFAULT_PACKET_SIZE];};
                     
         //Packet allocates *size* bytes, 0 length.  append() more to increase length.

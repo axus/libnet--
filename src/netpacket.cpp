@@ -13,6 +13,7 @@
 netpacket::~netpacket() {
     if (delete_data) {
         delete data;
+        data = NULL;
     }
 }
 
@@ -169,15 +170,12 @@ template <class T> size_t netpacket::append(T val) {
                 //Copy the data with no change
                 memcpy( &(data[length]), &val, size); //copy all bytes
         } else {
-                //Reverse the byte order, then copy
-                unsigned char *r_array = new unsigned char[ size ];
+                //For each byte in val
                 for (x = 0; x < size; x++)
                 {
-                        //r_array[x] = ((unsigned char *)&val)[size - x - 1];
-                        data[length + x] = ((unsigned char *)&val)[size - x - 1];
+                    //Copy val bytes to data, in reverse order
+                    data[length + x] = ((unsigned char *)&val)[size - x - 1];
                 }
-                //memcpy( &(data[length]), r_array, size); //copy all bytes
-                delete r_array;
         }
         length += size;
         return length;

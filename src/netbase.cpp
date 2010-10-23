@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <vector>
 
-using std::set;
+//using std::set;
 using std::map;
 using std::pair;
 using std::ofstream;
@@ -68,6 +68,9 @@ netbase::~netbase()
 #ifdef _WIN32
     WSACleanup();
 #endif
+
+    //Free space... would get deleted anyways
+    delete myBuffer;
 }
 
 
@@ -132,8 +135,8 @@ bool netbase::isConnected() const {
 }
 
 
-//Send packet on a connection 'c'
-int netbase::sendPacket( int connection, netpacket &msg) {
+//Send packet on a socket descriptor 'sd'
+int netbase::sendPacket( int sd, netpacket &msg) {
 
     int rv;
     const short length = msg.get_length();
@@ -144,13 +147,13 @@ int netbase::sendPacket( int connection, netpacket &msg) {
     }
 
     //Check if connection number exists in conSet
-    if ( conSet.find( connection ) == conSet.end() ) {
-        debugLog << "Error: No connection " << connection << " to send on" << endl;
+    if ( conSet.find( sd ) == conSet.end() ) {
+        debugLog << "Error: No socket " << sd << " to send on" << endl;
         return -1;
     }
 
     //Trying to send on socket
-    rv = send(connection, (const char*)msg.get_ptr(), length, /*flags*/0);
+    rv = send(sd, (const char*)msg.get_ptr(), length, /*flags*/0);
 
     //TODO: while (rv > 0 && totalSent < length + NET_MSG_HEADER_BYTES
     if (rv == SOCKET_ERROR) {
@@ -159,7 +162,7 @@ int netbase::sendPacket( int connection, netpacket &msg) {
     }
     
     //Record the message information, how much was sent
-    debugLog    << "Sent, rv=" << rv << "/" << length << " bytes" << endl;
+    debugLog    << "Sent, rv=" << rv << "/" << length << " bytes #" << sd << endl;
                 
     if (rv == 0) {
         debugLog << "Warning: Message not sent" << endl;
@@ -238,7 +241,7 @@ int netbase::unblockSocket(int sd) {
 //This must be called before each new "select()" call
 int netbase::buildSocketSet()
 {
-    set<int>::const_iterator iter;
+    std::set<int>::const_iterator iter;
 
     FD_ZERO( &sdSet );
     for (iter = conSet.begin(); iter != conSet.end(); iter++)
@@ -285,10 +288,10 @@ int netbase::readIncomingSockets() {
         debugLog << "Socket select error:"  << getSocketError() << endl;
     }
     else if (rv == 0) {         //No new messages
-        debugLog << "No new server data" << endl;
+        ;//debugLog << "No new server data" << endl;
     }
     else {                      //Something pending on a socket
-        debugLog << "Incoming server message" << endl;
+        debugLog << "Incoming message"  << endl;
         rv = readSockets();
     }
     
@@ -299,11 +302,14 @@ int netbase::readIncomingSockets() {
 int netbase::readSockets()
 {
     int rv=0, con=0;
-    set<int>::const_iterator con_iter;
+    std::set<int>::const_iterator con_iter;
     vector< netpacket * > packets;
+    
+    //Copy connection set, as conSet entries may be deleted due to disconnects
+    std::set<int> socketSet = conSet;
 
     //Check all connections in conSet
-    for (con_iter = conSet.begin(); con_iter != conSet.end(); con_iter++) {
+    for (con_iter = socketSet.begin(); con_iter != socketSet.end(); con_iter++) {
         con = *con_iter;
         if (FD_ISSET( con, &sdSet)) {
             //Data pending from client, get the message (or disconnect)
@@ -311,7 +317,7 @@ int netbase::readSockets()
             rv = recvSocket( con, (myBuffer + startIndex) );
             if ( rv > 0 ) {
             
-                //Read from buffer into new packet object
+                //Read from buffer into new packet object (don't forget to delete it)
                 netpacket *pkt = getPacket( con, (myBuffer + startIndex), rv);
                 
                 //Set connection ID for packet
@@ -375,12 +381,13 @@ int netbase::readSockets()
             callback( pkt, cbData); //What to do with return value?
         }
     }
-    
+
     //Delete the dynamically created packet objects (but not what they point to)
     for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter = packets.begin()) {
-        delete *pkt_iter;
+        delete (*pkt_iter);
     }
-    
+
+  
     //If myIndex exceeds threshold, set it back to 0.
     if (myIndex > NET_MEMORY_SIZE) {
         myIndex = 0;
@@ -454,7 +461,7 @@ size_t netbase::incomingCB( netpacket* pkt, void *CBD) {
         return -1;
     }
 #ifdef DEBUG
-    std::cerr << "Packet on #" << pkt->ID << endl;
+    std::cerr << endl << "Packet on #" << pkt->ID << endl;
 #endif
     return 0;
 }
@@ -462,7 +469,7 @@ size_t netbase::incomingCB( netpacket* pkt, void *CBD) {
 size_t netbase::connectionCB( int con, void *CBD) {
 
 #ifdef DEBUG    
-    std::cerr << "New connection #" << con << endl;
+    std::cerr << endl << "New connection #" << con << endl;
 #endif
     return 0;
 };
@@ -508,90 +515,90 @@ netpacket *netbase::getPacket( int con, unsigned char *buffer, short len)
 //Get the most recent socket error from the system
 string netbase::getSocketError() const
 {
-    string result;
-
-    result = "Unknown network error";
+    //string lastError;
+    lastError = "Unknown network error";
+    
 #ifdef _WIN32
     switch ( WSAGetLastError()) {
         case WSANOTINITIALISED:
-            result = "Server did not initialize WSA";
+            lastError = "Server did not initialize WSA";
             break;
         case WSAENETDOWN:
-            result = "Network failure";
+            lastError = "Network failure";
             break;
         case WSAEADDRINUSE:
-            result = "Address in use";
+            lastError = "Address in use";
             break;
         case WSAEINTR:
-            result = "Socket access interrupted";
+            lastError = "Socket access interrupted";
             break;
         case WSAEINPROGRESS:
-            result = "A socket is blocking";
+            lastError = "A socket is blocking";
             break;
         case WSAEADDRNOTAVAIL:
-            result = "Address not available";
+            lastError = "Address not available";
             break;
         case WSAEAFNOSUPPORT:
-            result = "Address not supported";
+            lastError = "Address not supported";
             break;
         case WSAECONNREFUSED:
-            result = "Connection (forcefully) refused";
+            lastError = "Connection (forcefully) refused";
             break;
         case WSAEDESTADDRREQ :
-            result = "Address required";
+            lastError = "Address required";
             break;
         case WSAENOTCONN:
-            result = "Socket already disconnected";
+            lastError = "Socket already disconnected";
             break;
         case WSAEFAULT:
-            result = "Programming mistake";
+            lastError = "Programming mistake";
             break;
         case WSAEINVAL:
-            result = "Unbound or invalid socket";
+            lastError = "Unbound or invalid socket";
             break;
         case WSAEISCONN:
-            result = "Already connected";
+            lastError = "Already connected";
             break;
         case WSAEMFILE:
-            result = "No more descriptors left";
+            lastError = "No more descriptors left";
             break;
         case WSAENETUNREACH:
-            result = "Destination unreachable";
+            lastError = "Destination unreachable";
             break;
         case WSAENOBUFS:
-            result = "Out of buffer space";
+            lastError = "Out of buffer space";
             break;
         case WSAENOTSOCK:
-            result = "Non-socket descriptor";
+            lastError = "Non-socket descriptor";
             break;
         case WSAETIMEDOUT:
-            result = "Connection timeout";
+            lastError = "Connection timeout";
             break;
         case WSAEWOULDBLOCK:
-            result = "Blocking on non-blocking socket";
+            lastError = "Blocking on non-blocking socket";
             break;
         case WSAEOPNOTSUPP:
-            result = "Unsupported socket operation";
+            lastError = "Unsupported socket operation";
             break;
         case WSAESHUTDOWN:
-            result = "Socket already shutdown";
+            lastError = "Socket already shutdown";
             break;
         case WSAEMSGSIZE:
-            result = "Recieved oversized message";
+            lastError = "Recieved oversized message";
             break;
         case WSAECONNABORTED:
-            result = "Socket was lost";
+            lastError = "Socket was lost";
             break;
         case WSAECONNRESET:
-            result = "Socket was reset";
+            lastError = "Socket was reset";
             break;
         default:
-            result = "Unknown winsock error";
+            lastError = "Unknown winsock error";
             break;
     }
 #endif
 
-    return result;
+    return lastError;
 }
 
 //Start the debugging log

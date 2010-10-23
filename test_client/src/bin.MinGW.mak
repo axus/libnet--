@@ -22,8 +22,13 @@ SRC=$(addprefix $(SRCDIR)/, $(SRCFILES))
 OBJFILES=$(SRCFILES:.cpp=.o)
 OBJ=$(addprefix $(BUILD)/, $(OBJFILES))
 
-# All warnings, optimization level 3
-CFLAGS=-Wall -O3
+# Debug, or optimize
+ifeq ($(DEBUG),on)
+  CFLAGS=-Wall -g -DDEBUG
+else
+  # All warnings, optimization level 3
+  CFLAGS=-Wall -O3
+endif
 
 # Default target of make is "all"
 .all: all      
@@ -35,7 +40,7 @@ $(BUILD)/%.o: $(SRCDIR)/%.cpp
 
 # Build executable from objects and libraries to current directory
 $(BIN): $(OBJ)
-	$(CC) $^ $(LDFLAGS) $(LIBS) -o $@
+	$(CC) $^ $(CFLAGS) $(LDFLAGS) $(LIBS) -o $@
 	
 # Remove object files and core files with "clean" (- prevents errors from exiting)
 RM=rm -f

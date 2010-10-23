@@ -1,19 +1,21 @@
 # Test: Connect to Google, send HTTP GET request, print incoming packets
 
-BIN         = test_google.exe
-SRCFILES    = test_google.cpp
+BIN         = test_client.exe
+SRCFILES    = test_client.cpp
 LIBS        = -L../ -lnet-- -lwsock32
-INCLUDES    = -I../src -DDEBUG
+INCLUDES    = -I../src
+DEBUG       = on
 
-#Build rules for a library in MinGW
-include src/bin.MinGW.mak
-
-#What to do for make install
 INSTALL_BIN = ../
 
+#Build rules for a binary in MinGW
+include src/bin.MinGW.mak
+
+#Different cleaning options
 clean2: clean
 	-rm -f network.log
 	
+#How to install
 install:
 	cp $(BIN) $(INSTALL_BIN)/
 

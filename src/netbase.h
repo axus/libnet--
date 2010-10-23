@@ -65,8 +65,8 @@ public:
     //const functions
     bool isConnected() const;
 
-    //Send packet "pkt" on connection "c"
-    int sendPacket( int c, netpacket &pkt);
+    //Send packet "pkt" on socket "sd"
+    int sendPacket( int sd, netpacket &pkt);
 
     //Logging functions
     bool openLog() const;     //will open the debugLog, if not open already
@@ -74,7 +74,7 @@ public:
 
     //Public data members
     mutable std::ofstream debugLog;  //want this to be publicly accessible
-    mutable std::string lastError;
+    mutable std::string lastError;  //External classes should check this for error string
 
 protected:
     //Network parameters
@@ -126,6 +126,7 @@ protected:
     virtual int closeSocket(int sd);      
 
     //Create netpacket from data on incoming connection
+    //We must delete it when finished!!
     netpacket* getPacket( int ID, unsigned char* buffer, short len);
     
     //Debugging helpers

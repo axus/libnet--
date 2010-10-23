@@ -71,6 +71,7 @@ Transfer-Encoding: chunked\
         rv = Server.run();
         if (rv == 0) {
             passedtime += sleepytime;
+            cout << "." << flush;
         }
     }
     
@@ -93,6 +94,7 @@ size_t send_response( netpacket* pkt, void *cb_data)
     
     //Send response packet on connection where we received a packet
     result = response->server->sendPacket(connection, http_response_pkt);
+    cout << "s" << flush;
     
     //Return value of sendPacket
     return result;

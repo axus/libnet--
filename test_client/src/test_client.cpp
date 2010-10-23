@@ -25,9 +25,14 @@ size_t print_pkt( netpacket* pkt, void *cb_data);
 int main (int argc, char *argv[])
 {
   
-    const string server = "www.google.com";
+    string server = "localhost";
     const short port = 80, lport = 13371;
     const string http_request("GET /index.html HTTP/1.1\r\n\r\n");
+
+    //Command line option
+    if (argc > 1) {
+        server = argv[1];
+    }
 
     //Create client
     netclient Client;
@@ -41,9 +46,13 @@ int main (int argc, char *argv[])
     strncpy((char*)(buffer + index), http_request.c_str(), http_request.length());
     netpacket http_get_pkt( http_request.length(), buffer + index);
 
-    //Connect... to Google!
+    //Connect to server on port 80
     int connection;
     connection = Client.doConnect(server.c_str(), port, lport);
+    if (connection <= 0) {
+        cout << "Connection error: " << Client.lastError << endl;
+        return connection;
+    }
 
     //Send HTTP request... to Google!
     Client.sendPacket( connection, http_get_pkt );
