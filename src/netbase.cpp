@@ -383,10 +383,9 @@ int netbase::readSockets()
     }
 
     //Delete the dynamically created packet objects (but not what they point to)
-    for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter = packets.begin()) {
+    for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter++) {
         delete (*pkt_iter);
     }
-
   
     //If myIndex exceeds threshold, set it back to 0.
     if (myIndex > NET_MEMORY_SIZE) {

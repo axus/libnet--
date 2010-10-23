@@ -163,22 +163,23 @@ int netclient::doDisconnect()
 {
     int result = 0;
 
-    static char quitMessage[8] = "exit";
-
     openLog();
     if (sdServer != (int)INVALID_SOCKET) {
         
         //Debug information when closing a connected socket
         if (ready) {
         
-            //Send explicit disconnect message to server
+        /*
+            //Add explicit disconnect message here
+            char quitMessage[9] = "exit";
             netpacket pkt( 8, (unsigned char*)quitMessage);
             sendPacket( sdServer, pkt);
+        */;
         
-            debugLog << "Closing socket " << sdServer << endl;
-            lastError = lastError + string("; Closing socket");
         }
+        debugLog << "Closing socket " << sdServer << endl;
         closeSocket(sdServer);      //Base class socket close, handles conSet
+        lastError = lastError + string("; Closing socket");
     }
     else {
         lastError = "Already disconnected";
