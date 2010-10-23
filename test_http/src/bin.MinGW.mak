@@ -13,7 +13,7 @@ BUILD=build
 LDFLAGS= -mconsole -Wl,--enable-auto-import
 
 #Minimum Windows version: Windows XP, IE 6.01
-DEFINES= -DMINGW -D_WIN32_WINNT=0x0500 -DWINVER=0x0500 -D_WIN32_IE=0x0601 $(MOREFLAGS)
+CPPFLAGS= -DMINGW -D_WIN32_WINNT=0x0500 -DWINVER=0x0500 -D_WIN32_IE=0x0601
 
 #SRC files in SRCDIR directory
 SRC=$(addprefix $(SRCDIR)/, $(SRCFILES))
@@ -30,24 +30,17 @@ else
   CFLAGS=-Wall -O3
 endif
 
-
 # Default target of make is "all"
 .all: all      
 all: $(BIN) $(LIBBIN)
 
 # Build object files with chosen options
 $(BUILD)/%.o: $(SRCDIR)/%.cpp
-	$(CC) $(CFLAGS) $(DEFINES) $(INCLUDES) -o $@ -c $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) -o $@ -c $<
 
-# Uncomment to build a binary instead of a library!
 # Build executable from objects and libraries to current directory
-#$(BIN): $(OBJ)
-#	$(CC) $^ $(CFLAGS) $(LDFLAGS) $(DEFINES) $(LIBS) -o $@
-
-# Build library
 $(BIN): $(OBJ)
-	ar r $@ $^
-	ranlib $@
+	$(CC) $^ $(CFLAGS) $(LDFLAGS) $(LIBS) -o $@
 	
 # Remove object files and core files with "clean" (- prevents errors from exiting)
 RM=rm -f

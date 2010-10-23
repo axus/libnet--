@@ -1,8 +1,11 @@
 # Project: net-- library
 
-BIN = libnet--.a
-SRCFILES = netpacket.cpp netbase.cpp netclient.cpp netserver.cpp
-HEADERS = netpacket.h netbase.h netclient.h netserver.h
+BIN         = libnet--.a
+SRCFILES    = netpacket.cpp netbase.cpp netclient.cpp netserver.cpp
+HEADERS     = netpacket.h netbase.h netclient.h netserver.h
+DEBUG       = on
+
+
 #Build rules for a library in MinGW
 include src/lib.MinGW.mak
 

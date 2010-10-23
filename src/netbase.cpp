@@ -377,7 +377,7 @@ int netbase::readSockets()
     }
     
     //Delete the dynamically created packet objects (but not what they point to)
-    for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter++) {
+    for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter = packets.begin()) {
         delete *pkt_iter;
     }
     
