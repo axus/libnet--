@@ -9,7 +9,12 @@
 
 #include "netpacket.h"
 
-#include <winsock2.h>
+#ifdef _WIN32
+    #include <winsock2.h>
+#else
+    #include <sys/select.h>
+#endif
+
 #include <sys/time.h>
 #include <set>
 #include <map>
@@ -35,39 +40,38 @@ public:
     static const size_t NET_MAX_RECV_SIZE   = 0x40000;   //256K
     static const size_t NET_MEMORY_SIZE     = 0x1000000; //16MB
 
-    //type netbase::testPacketFP is a function pointer for functions that test packet array for matching condition
-    typedef bool (*testPacketFP)( const unsigned char* pkt_data, void *cb_data);
     typedef size_t (*disconnectFP)( int ID, void *cb_data);
+    typedef size_t (*newConnFP)( int ID, void *cb_data);
 
     //Constructors
     netbase(unsigned int);
     virtual ~netbase();
 
-    //Add a callback for any packet
-    bool addCB( netpacket::netMsgCB cbFunc, void* dataCBD );
+    //Add a callback for incoming packets on matching connection *c*
+    bool addCB( int c, netpacket::netPktCB cbFunc, void *cbData );
+    
+    //Remove callbacks for connection *c*
+    bool removeCB( int c);
 
-    //Add a callback for packets where testFunc() is true. Callback the cbFunc function.
-    bool addCB( testPacketFP &testFunc, netpacket::netMsgCB& cbFunc, void* dataCBD );
-    
-    //Return the callback triggered where testFunc() is true.
-    bool getCB( testPacketFP &testFunc, netpacket::netMsgCB& cbFunc, void*& dataCBD ) const;
-    
-    //Remove callbacks triggered on testFunc
-    bool removeCB( testPacketFP& testFunc );
-    
-    //Remove ALL callbacks
+    //Remove callbacks for every connection
     void removeAllCB();
+
+    //Update allCB and allCBD: callback for all incoming packets
+    void setPktCB( netpacket::netPktCB cbFunc, void *cbData);
+
+    //Set callback for what to do when new connection is created
+    void setConnectCB( newConnFP cbFunc, void *cbData);
 
     //const functions
     bool isConnected() const;
 
-    //Send message "msg" on connection "c"
-    int sendMessage( int c, netpacket &msg);
+    //Send packet "pkt" on connection "c"
+    int sendPacket( int c, netpacket &pkt);
 
     //Logging functions
     bool openLog() const;     //will open the debugLog, if not open already
     bool closeLog() const;    //close the debugLog if open
-    
+
     //Public data members
     mutable std::ofstream debugLog;  //want this to be publicly accessible
     mutable std::string lastError;
@@ -87,26 +91,30 @@ protected:
     size_t myIndex; //offset in buffer
     size_t lastMessage;  //Increment each time a message is sent out
 
-    //Callback function and data for any packet    
-    netpacket::netMsgCB allCB; 
+    //Function pointer for when a new connection is received
+    newConnFP conCB;
+    void *conCBD;
+
+    //Default function and data for incoming packets
+    netpacket::netPktCB allCB; 
     void *allCBD;
     
     //Map connection IDs to callback function/data for dropped connections
     std::map< int, disconnectFP > disconnectCB_map;
     std::map< int, void* > disconnectCBD_map;
-    
 
-    //map packet tester function pointer -> callback function
-    std::map< testPacketFP, netpacket::netMsgCB > CB_functions;    
-    /*short (*)( netpacket&, void*)*/
-    //map packet tester function pointer -> callback data
-    std::map< testPacketFP, void* > CB_datas;    
+    //Map connection IDs to callback function/data for incoming packets
+    std::map< int, netpacket::netPktCB > packetCB_map;
+    std::map< int, void* > packetCBD_map;
 
     //Modify a socket to be non-blocking
     int unblockSocket(int); 
     
     //Create the set of sockets
     int buildSocketSet();
+    
+    //Select on socketSet until incoming packets complete
+    int readIncomingSockets();
     
     //Read set of socket 
     int readSockets();
@@ -115,7 +123,7 @@ protected:
     int recvSocket(int sd, unsigned char* buffer);
     
     //Closes socket, sets it to INVALID_SOCKET
-    virtual int closeSocket(int);      
+    virtual int closeSocket(int sd);      
 
     //Create netpacket from data on incoming connection
     netpacket* getPacket( int ID, unsigned char* buffer, short len);
@@ -124,8 +132,9 @@ protected:
     void debugBuffer( unsigned char* buffer, int buflen) const;
     std::string getSocketError() const;
 
-    //Default "allCB" function
-    static size_t doNothing( netpacket* pkt, void *CBD) {return 0;};
+    //Default functions for function pointers
+    static size_t incomingCB( netpacket* pkt, void *CBD);
+    static size_t connectionCB( int con, void *CBD);
 };
 
 

@@ -128,7 +128,7 @@ int netserver::closeSocket( int sd)
     //Do normal base class closing
     rv = netbase::closeSocket( sd);
 
-    //Special test case
+    //Special test case for listening port
     if (sd == sdListen)
         sdListen = (int)INVALID_SOCKET;
 
@@ -146,25 +146,11 @@ int netserver::run()
     
         //First, look for incoming connections
         checkPort();
-    
+
+        //We have more than 0 clients, check for data
         if (conSet.size() > 0) {
-            //Rebuild the client set
-            buildSocketSet();
-            
-            //Check for incoming client data
-            rv = select(sdMax+1, &sdSet, (fd_set *) 0, (fd_set *) 0, &timeout);
-            if (rv == SOCKET_ERROR) {   //Socket select failed
-                debugLog << "Socket select error:"  << getSocketError() << endl;
-            }
-            else if (rv == 0) {         //No new messages
-                //debugLog << "No new client data" << endl;
-            }
-            else {                      //Something pending on a socket
-                debugLog << "Incoming client data" << endl;
-                readSockets();
-            }
+            rv = readIncomingSockets();
         }
-        //else debugLog << "Waiting for clients" << endl;   //This would print way too much
             
     }
     catch(...) {
@@ -184,7 +170,7 @@ int netserver::buildListenSet()
     return 0;
 }
 
-//Check sdListen for incoming connections
+//Check sdListen for new incoming connections
 int netserver::checkPort()
 {
     int connection=0, rv;
@@ -212,16 +198,19 @@ int netserver::checkPort()
                 //Connection refused or failed
             }
             else {
-                //Add callback for all incoming packets on connection
-                addCB( &cb_incoming, (void*)this);
+                //Report new connection
+                //addCB( &cb_incoming, (void*)this);
+                conCB( connection, (void*)this);
             }
+        } else {
+          ;//Existing connection has something to say
         }
     }
     
     return rv;  //Return value of select statement...
 }
 
-//Handle a new client connection
+//Accept new connection, add connection descriptor to conSet
 int netserver::acceptConnection()
 {
     int connection;
@@ -261,6 +250,7 @@ int netserver::acceptConnection()
     return connection;
 }
 
+/*
 //Default function to handle incoming packets
 size_t netserver::handleIncoming( netpacket *pkt) {
 
@@ -278,4 +268,4 @@ size_t netserver::cb_incoming( netpacket* pkt, void *cb_data)
     return ((netserver*)cb_data)->handleIncoming( pkt );
     
 }
-
+*/

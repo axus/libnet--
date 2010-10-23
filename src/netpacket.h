@@ -9,26 +9,32 @@
 //Class for generic byte array to be sent
 class netpacket {
     protected:
-        size_t maxsize;
+        size_t maxsize, length;
         unsigned char* data;
-        size_t position;
         bool delete_data;
     public:
         static const size_t DEFAULT_PACKET_SIZE = 1024;
-        typedef size_t (*netMsgCB)( netpacket* pkt, void *cb_data); //message processing callback type
+        
+        typedef size_t (*netPktCB)( netpacket* pkt, void *cb_data); //message processing callback type
 
-	//Constuctors: you must choose how much memory to allocate when you create the packet :(
+	   //Default packet allocates 1024 bytes, 0 length.  append() more to increase length.
         netpacket( ):
-                maxsize(DEFAULT_PACKET_SIZE), data(0), position(0), delete_data(true), ID(0)
+                maxsize(DEFAULT_PACKET_SIZE), length(0), data(0), delete_data(true), ID(0)
                     { data = new unsigned char[DEFAULT_PACKET_SIZE];};
+                    
+        //Packet allocates *size* bytes, 0 length.  append() more to increase length.
         netpacket( size_t size):
-                maxsize(size), data(0), position(0), delete_data(true), ID(0)
+                maxsize(size), length(0), data(0), delete_data(true), ID(0)
                     { data = new unsigned char[size];};
+
+        //Packet points to pre-made buffer, length == maxsize.  Only good for sending or copying.
         netpacket( size_t size, unsigned char* buf):
-                maxsize(size), data(buf), position(0), delete_data(false), ID(0)
+                maxsize(size), length(size), data(buf), delete_data(false), ID(0)
                     {;};
+        
+        //Packet points to pre-made buffer, length == ptr.  You can append up to maxsize.
         netpacket( size_t size, unsigned char* buf, size_t ptr):
-                maxsize(size), data(buf), position(ptr), delete_data(false), ID(0)
+                maxsize(size), length(ptr), data(buf), delete_data(false), ID(0)
                     {;};
         
     //Destructors
@@ -37,7 +43,7 @@ class netpacket {
     //Info
         size_t ID;   //Unique identifier for this packet... if you bother to set it!
         
-        size_t get_length() const { return position; }; //Return used byte count
+        size_t get_length() const { return length; }; //Return used byte count
         size_t get_maxsize() const { return maxsize; }; //Return max byte count
         const unsigned char* get_ptr() { return data; }; //Return pointer to entire packet data
     
@@ -74,7 +80,7 @@ class netpacket {
         size_t append (const unsigned char *val, size_t size); //byte array
 
     //Reset packet (to reuse the packet without resizing)
-        void reset() { position = 0;};
+        void reset() { length = 0;};
 };
 
 

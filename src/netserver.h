@@ -18,11 +18,11 @@ class netserver : public netbase {
 public:
     netserver(unsigned int max);
     ~netserver();
-    int openPort(short port);
+    int openPort(short port);   //open *port*, return socket descriptor
     void closePort();        //close the server (and server.log)
     int run();         //Check the network: read sockets, handle callbacks
 
-    static size_t cb_incoming( netpacket* pkt, void *cb_data);   //Default function to handle incoming packets
+    //netPktCB ; //message processing callback type
 
 protected:
     fd_set listenSet;   //set of port listening file descriptors
@@ -33,9 +33,7 @@ protected:
     int buildListenSet();   //Rebuild listenSet
     int checkPort();        //Examine port for connections
     int acceptConnection(); //Handle an incoming connection
-    size_t handleIncoming( netpacket* pkt);   //Default function to handle incoming packets
     
-
 };
 
 #endif

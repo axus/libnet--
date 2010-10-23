@@ -33,7 +33,7 @@ int main (int argc, char *argv[])
     netclient Client;
     
     //Add callback for all received packets
-    Client.addCB( print_pkt, NULL);
+    Client.setPktCB( print_pkt, NULL);
 
     //Create http GET packet        
     unsigned char buffer[netbase::NET_MAX_RECV_SIZE];
@@ -46,7 +46,7 @@ int main (int argc, char *argv[])
     connection = Client.doConnect(server.c_str(), port, lport);
 
     //Send HTTP request... to Google!
-    Client.sendMessage( connection, http_get_pkt );
+    Client.sendPacket( connection, http_get_pkt );
     
     //Loop until timeout
     size_t passedtime = 0;

@@ -119,7 +119,7 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
     }
     else if (rv > 0) {
         getsockname( sdServer, (struct sockaddr*)&sad, &namelen);
-        debugLog << "Connected to socket " << sdServer
+        debugLog << "Connected to " << serverAddress << " S#" << sdServer
         << " from " << inet_ntoa(sad.sin_addr) << ":" << ntohs(sad.sin_port) << endl;
 
         //Add to sdSet
@@ -173,7 +173,7 @@ int netclient::doDisconnect()
         
             //Send explicit disconnect message to server
             netpacket pkt( 8, (unsigned char*)quitMessage);
-            sendMessage( sdServer, pkt);
+            sendPacket( sdServer, pkt);
         
             debugLog << "Closing socket " << sdServer << endl;
             lastError = lastError + string("; Closing socket");
@@ -195,23 +195,9 @@ int netclient::run()
 {
     int rv;
 
-    //debugLog << "Checking network connection...";
-
     try {
-        //Rebuild the client set, check for incoming data
-        buildSocketSet();
-        rv = select(sdMax+1, &sdSet, (fd_set *) 0, (fd_set *) 0, &timeout);
-
-        if (rv == SOCKET_ERROR) {   //Socket select failed
-            debugLog << "Socket select error:"  << getSocketError() << endl;
-        }
-        else if (rv == 0) {         //No new messages
-            //debugLog << "No new server data" << endl;
-        }
-        else {                      //Something pending on a socket
-            debugLog << "Incoming server message" << endl;
-            readSockets();
-        }
+        //RECEIVE DATA ON ALL INCOMING CONNECTIONS
+        rv = readIncomingSockets();
     }
     catch(...) {
         debugLog << "Unhandled exception!!" << endl;

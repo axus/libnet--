@@ -23,7 +23,8 @@ using std::setw;
 
 //Constructor, specify the maximum client connections
 netbase::netbase(unsigned int max): ready(false), sdMax(-1), conMax( max),
-    myBuffer(NULL), myIndex(0), lastMessage(-1), allCB(doNothing), allCBD(NULL)
+    myBuffer(NULL), myIndex(0), lastMessage(-1), 
+    conCB(connectionCB), conCBD(NULL), allCB(incomingCB), allCBD(NULL)
 {
     //Allocate memory for the ring buffer where incoming packets will drop
     myBuffer = new unsigned char[NET_MEMORY_SIZE << 1];
@@ -32,11 +33,16 @@ netbase::netbase(unsigned int max): ready(false), sdMax(-1), conMax( max),
     FD_ZERO( &sdSet);
 
     //Start debug log
-    openLog();
+    if (!openLog()) {
+#ifdef DEBUG
+        cerr << "Could not open debug log!" << endl;
+#endif
+        ;
+    }
 
-    //First timeout is 500ms
+    //Don't use timeout for select (but don't block, either)
     timeout.tv_sec = 0;
-    timeout.tv_usec = 500;
+    timeout.tv_usec = 0;
 
 #ifdef _WIN32
 	WSADATA wsaData;
@@ -58,89 +64,65 @@ netbase::netbase(unsigned int max): ready(false), sdMax(-1), conMax( max),
 netbase::~netbase()
 {
     //TODO: disconnect everything still in the conSet
+    
+#ifdef _WIN32
     WSACleanup();
+#endif
 }
 
 
-//Associate a callback function to all packets received
-//long netbase::addCB( size_t (*functionCB)( netpacket&, void*), void* CBD )
-bool netbase::addCB( netpacket::netMsgCB cbFunc, void* dataCBD  )
+//Set default callback function and data
+void netbase::setPktCB( netpacket::netPktCB cbFunc, void* dataCBD  )
 {
+    //Assign defaults
     allCB = cbFunc;
     allCBD = dataCBD;
     
-    return true;
-}
-
-//Add callback for specific conditions
-bool netbase::addCB( testPacketFP& testFunc, netpacket::netMsgCB& cbFunc, void* dataCBD )
-{
-    CB_functions.insert( pair< testPacketFP, netpacket::netMsgCB/* short (*)( netpacket&, void*)*/ >( testFunc, cbFunc ));
-    CB_datas.insert( pair< testPacketFP, void* >( testFunc, dataCBD ));
-
-    //TODO: support multiple callbacks on the same mapkey
-    return true;
 }
 
 
-//Remove callback associated with ID/version pair
-bool netbase::removeCB( testPacketFP& testFunc)
+//Add a callback for incoming packets on matching connection *c*
+bool netbase::addCB( int c, netpacket::netPktCB cbFunc, void* cbData )
 {
-    bool result=true;
+    bool result = true;
 
-    //Erase everything matching the key
-    if (CB_functions.erase( testFunc ) ==0) {
-        debugLog << "No callback function." << endl;
-        result = false;
-    }
-    if (CB_datas.erase( testFunc) == 0) {
-        debugLog << "No callback data." << endl;
-    }
-    //TODO: remove multiple callbacks
+    //Map c -> cbFunc
+    result = packetCB_map.insert( std::map< int, netpacket::netPktCB >::value_type( c, cbFunc)).second;
+    
+    //Map c -> cbData
+    result = result && packetCBD_map.insert( std::map< int, void* >::value_type( c, cbData)).second;
+    
+    //Return value: was callback and callback data inserted successfully?
+    return result;
+}
 
+//Remove callbacks for connection *c*
+bool netbase::removeCB( int c)
+{
+    bool result = true;
+    
+    //Unmap c -> callback function
+    result = (packetCB_map.erase( c) > 0);
+    
+    //Unmap c -> callback data
+    result = result && (packetCBD_map.erase( c) > 0);
+    
+    //Return value: was there a callback to remove?
     return result;
 }
 
 
-//Clear the callback data structures
+//Clear the incoming packet callbacks
 void netbase::removeAllCB()
 {
-    CB_functions.clear();
-    CB_datas.clear();
-    allCB = doNothing;
+    //CB_functions.clear();
+    //CB_datas.clear();
+    packetCB_map.clear();
+    packetCBD_map.clear();
+    allCB = incomingCB;
     allCBD = NULL;
 
     return;
-}
-
-
-//Find the callback function and data matching the ID and version
-bool netbase::getCB(testPacketFP& testFunc, netpacket::netMsgCB& functionCB, void*& dataCB) const
-{
-    map< testPacketFP, netpacket::netMsgCB >::const_iterator iter;
-    map< testPacketFP, void*>::const_iterator iter_data;
-    
-    //Find the related callback function
-    debugLog << hex;
-    iter = CB_functions.find( testFunc );
-    if (iter != CB_functions.end()) {
-        functionCB = iter->second;  //Assign value to parameter here
-        debugLog << "Callback: CB=0x" << (int)functionCB << endl;
-    }
-    else {
-        functionCB = NULL;
-        return false;
-    }
-    debugLog << dec;
-
-    //Find the related callback data
-    iter_data = CB_datas.find( testFunc);
-    if (iter_data != CB_datas.end())
-        dataCB = iter_data->second; //Assign value to next parameter here
-    else
-        dataCB = NULL;
-
-    return true;
 }
 
 
@@ -150,8 +132,8 @@ bool netbase::isConnected() const {
 }
 
 
-//Send message on a connection 'c'
-int netbase::sendMessage( int connection, netpacket &msg) {
+//Send packet on a connection 'c'
+int netbase::sendPacket( int connection, netpacket &msg) {
 
     int rv;
     const short length = msg.get_length();
@@ -266,6 +248,7 @@ int netbase::buildSocketSet()
 
 }
 
+
 // Close a socket, remove it from the list of connections
 int netbase::closeSocket(int sd)
 {
@@ -289,6 +272,28 @@ int netbase::closeSocket(int sd)
     return rv;
 }
 
+//Receive all the data on incoming sockets.  Return number of packets processed.
+int netbase::readIncomingSockets() {
+
+    int rv=0;
+    
+    //Rebuild the client set, check for incoming data
+    buildSocketSet();
+    rv = select(sdMax+1, &sdSet, (fd_set *) 0, (fd_set *) 0, &timeout);
+
+    if (rv == SOCKET_ERROR) {   //Socket select failed
+        debugLog << "Socket select error:"  << getSocketError() << endl;
+    }
+    else if (rv == 0) {         //No new messages
+        debugLog << "No new server data" << endl;
+    }
+    else {                      //Something pending on a socket
+        debugLog << "Incoming server message" << endl;
+        rv = readSockets();
+    }
+    
+    return rv;
+}
 
 //Check all sockets in sdSet for incoming data, then process callbacks
 int netbase::readSockets()
@@ -308,6 +313,11 @@ int netbase::readSockets()
             
                 //Read from buffer into new packet object
                 netpacket *pkt = getPacket( con, (myBuffer + startIndex), rv);
+                
+                //Set connection ID for packet
+                pkt->ID = con;
+                
+                //Add packet to the queue
                 packets.push_back( pkt);
             }
             else {
@@ -328,56 +338,73 @@ int netbase::readSockets()
     
     //All pending data has been read, fire callbacks now
     vector< netpacket * >::const_iterator pkt_iter;
-    map< testPacketFP, netpacket::netMsgCB >::const_iterator cb_iter;
+    map< int, netpacket::netPktCB >::const_iterator cb_iter;
+    map< int, void* >::const_iterator cbd_iter;
+    netpacket::netPktCB callback;
+    void *cbData;
     
     for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter++) {
 
         //Packet pointer
         netpacket *pkt = *pkt_iter;
+        if (pkt == NULL) {
+            debugLog << "NULL packet in my queue??" << endl;
+            continue;
+        }
         
-        //Perform the "main" callback
+        //Perform the callback run for every incoming packet
         allCB( pkt, allCBD);
         
-        //Try special case callbacks
-        for (cb_iter = CB_functions.begin(); cb_iter != CB_functions.end(); cb_iter++) {
-            testPacketFP testFunc = cb_iter->first;
-            void *cb_data = CB_datas.find(testFunc)->second;
-            
-            //Check if packet matches condition
-            if (testFunc( pkt->get_ptr(), cb_data)) {
-              
-                //Get callback function and callback data
-                netpacket::netMsgCB pktcb = cb_iter->second;
-                
-                //Finally, run the callback! Could happen for multiple conditions
-                pktcb( pkt, cb_data);
-            }
+        //Get connection ID from packet (laaaazy)
+        con = pkt->ID;
+        
+        //Connection specific callback data
+        cbd_iter = packetCBD_map.find( con );
+        if (cbd_iter == packetCBD_map.end()) {
+            cbData = NULL;
+        } else {
+            cbData = cbd_iter->second;
+        };
+        
+        //Find connection specific callback
+        cb_iter = packetCB_map.find( con );
+        
+        //Run callback, if exists
+        if ( cb_iter != packetCB_map.end()) {
+            callback = cb_iter->second;
+            callback( pkt, cbData); //What to do with return value?
         }
     }
     
-    //Delete the dynamically created packet objects
+    //Delete the dynamically created packet objects (but not what they point to)
     for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter++) {
         delete *pkt_iter;
     }
     
     //If myIndex exceeds threshold, set it back to 0.
-    //We'd better be done with all the packets!!
     if (myIndex > NET_MEMORY_SIZE) {
         myIndex = 0;
     }
     
-    return rv;
+    //Return number of packets processed (not total size)
+    return packets.size();
 }
 
 
 //Recieve incoming data on a buffer, return the number of bytes read in
 int netbase::recvSocket(int sd, unsigned char* buffer)
 {
-    int rv;
+    int rv, rs;
+    size_t offset = 0;
+
+    //Create FD_SET that has only this socket
+    fd_set sds, sds2;
+    FD_ZERO(&sds);
+    FD_SET((unsigned int)sd, &sds);
 
     do {
         //Read incoming bytes to buffer
-        rv = recv( sd, (char*)buffer, NET_MAX_RECV_SIZE,  0 );
+        rv = recv( sd, (char*)(buffer + offset), NET_MAX_RECV_SIZE,  0 );
     
         if (rv == 0) {
             debugLog << "Socket " << sd << " disconnected" << endl;
@@ -401,14 +428,44 @@ int netbase::recvSocket(int sd, unsigned char* buffer)
         }
     
         //rv was not 0 or SOCKET_ERROR, so it's the number of bytes received.
-        myIndex += rv;
+        debugLog << "recv " << rv << " bytes" << endl;
+        offset += rv;
 
-    } while (rv == (int)NET_MAX_RECV_SIZE);  //Keep reading if recv buffer is full
+        //See if there is more to read
+        sds2 = sds;
+        rs = select(sd+1, &sds2, NULL, NULL, &timeout); 
+        if (rs == SOCKET_ERROR) {   //Socket select failed
+            debugLog << "Socket select error:"  << getSocketError() << endl;
+        }
+    } while (rs > 0);  //Keep reading if select says there's something here
     
-    debugLog << "Received " << rv << " bytes on socket " << sd << endl;
+    myIndex += offset;
+    debugLog << "Received " << offset << " bytes on socket " << sd << endl;
 
     return rv;
 }
+
+//Default functions for function pointers
+size_t netbase::incomingCB( netpacket* pkt, void *CBD) {
+    if (pkt == NULL) {
+#ifdef DEBUG
+        std::cerr << "Null packet?" << endl;
+#endif
+        return -1;
+    }
+#ifdef DEBUG
+    std::cerr << "Packet on #" << pkt->ID << endl;
+#endif
+    return 0;
+}
+
+size_t netbase::connectionCB( int con, void *CBD) {
+
+#ifdef DEBUG    
+    std::cerr << "New connection #" << con << endl;
+#endif
+    return 0;
+};
 
 
 //Output the contents of a buffer to the log

@@ -12,7 +12,7 @@ include src/bin.MinGW.mak
 INSTALL_BIN = ../
 
 clean2: clean
-	rm network.log
+	-rm -f network.log
 	
 install:
 	cp $(BIN) $(INSTALL_BIN)/
