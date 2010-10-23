@@ -56,7 +56,7 @@ int main (int argc, char *argv[])
     connection = Client.doConnect(server.c_str(), port, lport);
     if (connection <= 0) {
         cout << "Connection error: " << Client.lastError << endl;
-        return connection;
+        return 1;
     }
 
     //Send HTTP request... to Google!
@@ -71,7 +71,7 @@ int main (int argc, char *argv[])
 
         if (rv == SOCKET_ERROR) {
             cout << "Socket error: " << Client.lastError << endl;
-            break;
+            goto disconnect;
         }
         else if (rv == 0) {
             //Nothing happened, increment passedtime
@@ -82,8 +82,9 @@ int main (int argc, char *argv[])
         }
     }
 
+disconnect:
     Client.doDisconnect();
-    
+
     return connection;
 }
 
