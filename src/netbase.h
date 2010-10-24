@@ -46,10 +46,11 @@ public:
     void setConnectCB( connectionFP cbFunc, void *cbData);
 
     //Set callback for what to do when connection drops on other side
-    bool setDisconnectCB( int c, connectionFP cbFunc, void *cbData );
+    void setDisconnectCB( connectionFP cbFunc, void *cbData );
     
-    //Remove disconnection callbacks for connection *c*
-    bool removeDisconnectCB( int c);
+    //Remove disconnect callback
+    void removeDisconnectCB();
+
 
     //Remove callbacks for every connection
     void removeAllCB();
@@ -95,13 +96,13 @@ protected:
     connectionFP conCB;
     void *conCBD;
 
+    //Function pointer for when disconnection occurs
+    connectionFP disCB;
+    void *disCBD;
+
     //Default function and data for incoming packets
     netpacket::netPktCB allCB; 
     void *allCBD;
-    
-    //Map connection IDs to callback function/data for dropped connections
-    std::map< int, connectionFP > disconnectCB_map;
-    std::map< int, void* > disconnectCBD_map;
 
     //Map connection IDs to callback function/data for incoming packets
     std::map< int, netpacket::netPktCB > packetCB_map;
@@ -136,7 +137,19 @@ protected:
     //Default functions for function pointers
     static size_t incomingCB( netpacket* pkt, void *CBD);
     static size_t connectionCB( int con, void *CBD);
+    static size_t disconnectionCB( int con, void *CBD);
 };
 
+/*    
+    //Set callback for what to do when connection drops on other side
+    bool setDisconnectCB( int c, connectionFP cbFunc, void *cbData );
+    
+    //Remove disconnection callbacks for connection *c*
+    bool removeDisconnectCB( int c);
+
+    //Map connection IDs to callback function/data for dropped connections
+    std::map< int, connectionFP > disconnectCB_map;
+    std::map< int, void* > disconnectCBD_map;
+*/
 
 #endif

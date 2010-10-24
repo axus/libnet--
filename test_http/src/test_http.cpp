@@ -21,8 +21,8 @@ const size_t timeouttime = 60000;   //60s
 
 //Callbacks
 size_t send_response( netpacket* pkt, void *cb_data);
+size_t print_connect   ( int c, void *cb_data);
 size_t print_disconnect( int c, void *cb_data);
-size_t add_disconnectCB( int c, void *cb_data);
 
 //Types
 typedef struct  {
@@ -30,11 +30,6 @@ typedef struct  {
     char *msg;
     size_t length;
 } serverResponse;
-
-typedef struct {
-    netserver *server;
-    netbase::connectionFP cb;
-} serverCallback;
 
 //MAIN
 int main (int argc, char *argv[])
@@ -65,9 +60,12 @@ Transfer-Encoding: chunked\
     serverResponse response_data = { &Server , buffer, http_response.length() + 1};
     Server.setPktCB( send_response, &response_data);
 
-    //Set client disconnect callback
-    serverCallback connect_data = { &Server, print_disconnect};
-    Server.setConnectCB( add_disconnectCB, &connect_data);
+    //Set connection callback
+    Server.setConnectCB( print_connect, &Server);
+
+    //Set disconnection callback
+    Server.setDisconnectCB( print_disconnect, &Server);
+
 
     //Start listening on lport
     Server.openPort(lport);
@@ -109,6 +107,33 @@ size_t send_response( netpacket* pkt, void *cb_data)
     return result;
 }
 
+//Connection callback
+size_t print_connect( int c, void *cb_data)
+{
+    cout << "Connect on #" << c << endl;
+    return 0;
+}
+
+//Disconnection callback
+size_t print_disconnect( int c, void *cb_data)
+{
+    cout << "Disconnect on #" << c << endl;
+    return 0;
+}
+
+/*
+
+typedef struct {
+    netserver *server;
+    netbase::connectionFP cb;
+} serverCallback;
+
+
+    //Set client disconnect callback
+    serverCallback connect_data = { &Server, print_disconnect};
+    Server.setConnectCB( add_disconnectCB, &connect_data);
+
+
 // Connection callback
 size_t add_disconnectCB( int c, void *cb_data)
 {
@@ -120,12 +145,5 @@ size_t add_disconnectCB( int c, void *cb_data)
     
     return 0;
 }
-
-
-//Disconnection callback
-size_t print_disconnect( int c, void *cb_data)
-{
-    cout << "Disconnect on #" << c << endl;
-    return 0;
-}
+*/
 

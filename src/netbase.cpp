@@ -24,7 +24,8 @@ using std::setw;
 //Constructor, specify the maximum client connections
 netbase::netbase(unsigned int max): ready(false), sdMax(-1), conMax( max),
     myBuffer(NULL), myIndex(0), lastMessage(-1), 
-    conCB(connectionCB), conCBD(NULL), allCB(incomingCB), allCBD(NULL)
+    conCB(connectionCB), conCBD(NULL), disCB(disconnectionCB), disCBD(NULL),
+    allCB(incomingCB), allCBD(NULL)
 {
     //Allocate memory for the ring buffer where incoming packets will drop
     myBuffer = new unsigned char[NETMM_MEMORY_SIZE << 1];
@@ -121,42 +122,23 @@ void netbase::setConnectCB( connectionFP cbFunc, void *cbData)
     conCBD = cbData;
 }
 
-
-//Add disconnection callback for incoming packets on matching connection *c*
-bool netbase::setDisconnectCB( int c, connectionFP cbFunc, void *cbData )
+//Add disconnection callback
+void netbase::setDisconnectCB( connectionFP cbFunc, void *cbData )
 {
-    bool result = true;
-
-    //Map c -> cbFunc
-    result = disconnectCB_map.insert( std::map< int, connectionFP >::value_type( c, cbFunc)).second;
-    
-    //Map c -> cbData
-    result = result && disconnectCBD_map.insert( std::map< int, void* >::value_type( c, cbData)).second;
-    
-    //Return value: was callback and callback data inserted successfully?
-    return result;
+    //Remember disconnect callback info
+    disCB = cbFunc;
+    disCBD = cbData;
 }
 
-//Remove disconnection callbacks for connection *c*
-bool netbase::removeDisconnectCB( int c)
+//Remove disconnection callback
+void netbase::removeDisconnectCB()
 {
-    bool result = true;
     
-    //Unmap c -> callback function
-    result = (disconnectCB_map.erase( c) > 0);
-    
-    //Unmap c -> callback data
-    result = result && (disconnectCBD_map.erase( c) > 0);
-    
-    //Return value: was there a callback to remove?
-    return result;
 }
 
 //Clear the incoming packet callbacks
 void netbase::removeAllCB()
 {
-    //CB_functions.clear();
-    //CB_datas.clear();
     packetCB_map.clear();
     packetCBD_map.clear();
     allCB = incomingCB;
@@ -379,7 +361,7 @@ int netbase::readSockets()
         }
     }
     
-    //All pending data has been read, fire callbacks now
+    //All pending data has been read, fire incoming data callbacks now
     vector< netpacket * >::const_iterator pkt_iter;
     map< int, netpacket::netPktCB >::const_iterator cb_iter;
     map< int, void* >::const_iterator cbd_iter;
@@ -419,22 +401,13 @@ int netbase::readSockets()
         }
     }
 
-    //Handle disconnected sockets (could happen immediately after receiving bytes)
+    //Handle disconnected sockets (this can happen immediately after receiving bytes)
     for (con_iter = socketSet.begin(); con_iter != socketSet.end(); con_iter++) {
         con = *con_iter;
     
+        //Disconnection callback if the connection is closed
         if (isClosed(con)) {
-            //Call associated disconnect callback right away
-            map< int, connectionFP >::const_iterator dcb_iter;
-            dcb_iter = disconnectCB_map.find(con);
-            if ( dcb_iter != disconnectCB_map.end() ) {
-                //Call the disconnection callback, with mapped void *data
-                connectionFP dcFunc = (*dcb_iter).second;
-                dcFunc( con, disconnectCBD_map.find(con)->second);
-            }
-            else {
-                debugLog << "Socket #" << con << " closed, no callback" << endl;
-            }
+            disCB( con, disCBD);
         }
     }
 
@@ -529,6 +502,14 @@ size_t netbase::connectionCB( int con, void *CBD) {
 
 #ifdef DEBUG    
     std::cerr << endl << "New connection #" << con << endl;
+#endif
+    return 0;
+};
+
+size_t netbase::disconnectionCB( int con, void *CBD) {
+
+#ifdef DEBUG    
+    std::cerr << endl << "Lost connection #" << con << endl;
 #endif
     return 0;
 };
@@ -680,3 +661,50 @@ bool netbase::closeLog() const
 #endif
     return true;
 }
+
+
+            /*
+            map< int, connectionFP >::const_iterator dcb_iter;
+            dcb_iter = disconnectCB_map.find(con);
+            if ( dcb_iter != disconnectCB_map.end() ) {
+                //Call the disconnection callback, with mapped void *data
+                connectionFP dcFunc = (*dcb_iter).second;
+                dcFunc( con, disconnectCBD_map.find(con)->second);
+            }
+            else {
+                debugLog << "Socket #" << con << " closed, no callback" << endl;
+            }
+            */
+
+
+/*
+//Add disconnection callback for incoming packets on matching connection *c*
+bool netbase::setDisconnectCB( int c, connectionFP cbFunc, void *cbData )
+{
+    bool result = true;
+
+    //Map c -> cbFunc
+    result = disconnectCB_map.insert( std::map< int, connectionFP >::value_type( c, cbFunc)).second;
+    
+    //Map c -> cbData
+    result = result && disconnectCBD_map.insert( std::map< int, void* >::value_type( c, cbData)).second;
+    
+    //Return value: was callback and callback data inserted successfully?
+    return result;
+}
+
+//Remove disconnection callbacks for connection *c*
+bool netbase::removeDisconnectCB( int c)
+{
+    bool result = true;
+    
+    //Unmap c -> callback function
+    result = (disconnectCB_map.erase( c) > 0);
+    
+    //Unmap c -> callback data
+    result = result && (disconnectCBD_map.erase( c) > 0);
+    
+    //Return value: was there a callback to remove?
+    return result;
+}
+*/

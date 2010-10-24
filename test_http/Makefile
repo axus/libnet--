@@ -5,7 +5,7 @@ SRCFILES    = test_http.cpp
 LIBS        = -L../ -lnet-- -lwsock32
 INCLUDES    = -I../src
 LOGFILES    = network.log
-DEBUG       = on
+###DEBUG       = on
 
 
 #Build rules for a binary in MinGW
