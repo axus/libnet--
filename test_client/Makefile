@@ -1,21 +1,19 @@
-# Test: Connect to Google, send HTTP GET request, print incoming packets
+# Test of libnet-- netclient class.  Connect to HTTP and sent GET request.
 
 BIN         = test_client.exe
 SRCFILES    = test_client.cpp
 LIBS        = -L../ -lnet-- -lwsock32
 INCLUDES    = -I../src
-DEBUG       = on
+LOGFILES    = network.log
+###DEBUG       = on
 
-INSTALL_BIN = ../
 
 #Build rules for a binary in MinGW
-include src/bin.MinGW.mak
+include ../makefiles/bin.MinGW.mak
 
-#Different cleaning options
-clean2: clean
-	-rm -f network.log
-	
+
 #How to install
+INSTALL_BIN = ../
 install:
 	cp $(BIN) $(INSTALL_BIN)/
 

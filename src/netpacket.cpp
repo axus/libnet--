@@ -18,7 +18,7 @@ netpacket::~netpacket() {
 }
 
 //
-// Read out data from packet, increment length
+// Read out data from packet, increment position
 //
 
 //Read arbitrary class in network byte order
@@ -30,16 +30,16 @@ template <class T> size_t netpacket::read( T& val)
     //Check if byte order needs to be reversed
     if ( ntohl(x) == x ) {
         //Copy the data with no change
-        memcpy( &val, &(data[length]), size); //copy all bytes
+        memcpy( &val, &(data[position]), size); //copy all bytes
     } else {
         //Reverse the byte order, then copy
         for (x = 0; x < size; x++)
         {
-            ((unsigned char *)&val)[x] = data[length + size - x - 1];
+            ((unsigned char *)&val)[x] = data[position + size - x - 1];
         }
     }
-    length += size;
-    return length;
+    position += size;
+    return position;
 }
 
 //Read Generic class array into val. 
@@ -55,69 +55,69 @@ template <class T> size_t netpacket::read ( const T *val_array, size_t size)
         netpacket::read<T>( *(val_array + n) );
     }
     
-    //length was already incremented by ::read<T>
+    //position was already incremented by ::read<T>
     
-    return length;
+    return position;
 }
 
 //1 bit integer (uses 8 bits)
 size_t netpacket::read(bool &val)
 {
-    val = (bool)data[length++];
+    val = (bool)data[position++];
     
-    return length;
+    return position;
 }
 
 //8 bit integer
 size_t netpacket::read(unsigned char &val)
 {
-    val = data[length++];
+    val = data[position++];
     
-    return length;
+    return position;
 }
 
 //8 bit character
 size_t netpacket::read(char &val)
 {
-    val = (char)data[length++];
+    val = (char)data[position++];
     
-    return length;
+    return position;
 }
 
 //16 bit integer
 size_t netpacket::read(unsigned short &val)
 {
-    val = ntohs(*(unsigned short*)&data[length]);
-    length += sizeof(unsigned short);
+    val = ntohs(*(unsigned short*)&data[position]);
+    position += sizeof(unsigned short);
 
-    return length;
+    return position;
 }
 
 //16 bit integer
 size_t netpacket::read(short &val)
 {
-    val = ntohs(*(short*)&data[length]);
-    length += sizeof(short);
+    val = ntohs(*(short*)&data[position]);
+    position += sizeof(short);
 
-    return length;
+    return position;
 }
 
 //32 bit integer
 size_t netpacket::read(unsigned long &val)
 {
-    val = ntohl(*(unsigned long*)&data[length]);
-    length += sizeof(unsigned long);
+    val = ntohl(*(unsigned long*)&data[position]);
+    position += sizeof(unsigned long);
 
-    return length;
+    return position;
 }
 
 //32 bit integer
 size_t netpacket::read(long &val)
 {
-    val = ntohl(*(long*)&data[length]);
-    length += sizeof(long);
+    val = ntohl(*(long*)&data[position]);
+    position += sizeof(long);
     
-    return length;
+    return position;
 }
 
 //64 bit integer
@@ -141,19 +141,19 @@ size_t netpacket::read(double &val)
 //Character string
 size_t netpacket::read(char *val, size_t size)
 {
-    memcpy( val, &data[length], size);
-    length += size;
+    memcpy( val, &data[position], size);
+    position += size;
     
-    return length;
+    return position;
 }
 
 //byte array
 size_t netpacket::read(unsigned char *val, size_t size)
 {
-    memcpy( val, &data[length], size);
-    length += size;
+    memcpy( val, &data[position], size);
+    position += size;
 
-    return length;
+    return position;
 }
 
 //
@@ -168,17 +168,17 @@ template <class T> size_t netpacket::append(T val) {
         //Check if byte order needs to be reversed
         if ( htonl(x) == x ) {
                 //Copy the data with no change
-                memcpy( &(data[length]), &val, size); //copy all bytes
+                memcpy( &(data[position]), &val, size); //copy all bytes
         } else {
                 //For each byte in val
                 for (x = 0; x < size; x++)
                 {
                     //Copy val bytes to data, in reverse order
-                    data[length + x] = ((unsigned char *)&val)[size - x - 1];
+                    data[position + x] = ((unsigned char *)&val)[size - x - 1];
                 }
         }
-        length += size;
-        return length;
+        position += size;
+        return position;
 }
 
 //Append array of any class (reverse each element)
@@ -190,9 +190,9 @@ template <class T> size_t netpacket::append( const T *val_array, size_t size)
         netpacket::append<T>( val_array[n] );
     }
     
-    //length was incremented by netpacket::append<T>()
+    //position was incremented by netpacket::append<T>()
     
-    return length;
+    return position;
 }
 
 
@@ -200,27 +200,27 @@ template <class T> size_t netpacket::append( const T *val_array, size_t size)
 //1 bit integer (uses 8 bits)
 size_t netpacket::append (bool val)
 {
-        data[length] = (unsigned char)val;
-        length++;
+        data[position] = (unsigned char)val;
+        position++;
         
-        return length;
+        return position;
 }
 
 //8 bit integer
 size_t netpacket::append (unsigned char val)
 {
-        data[length] = val;
-        length++;
+        data[position] = val;
+        position++;
         
-        return length;
+        return position;
 }
 
 //8 bit character                     
 size_t netpacket::append (char val)
 {
-        data[length] = (unsigned char)val;
+        data[position] = (unsigned char)val;
         
-        return length;
+        return position;
 }
                               
 //16 bit integer
@@ -228,9 +228,9 @@ size_t netpacket::append (unsigned short val)
 {        
         val = htons(val);
         memcpy( data, &val, 2); //copy 2 bytes
-        length += 2;
+        position += 2;
         
-        return length;
+        return position;
 }
                     
 //16 bit integer
@@ -238,9 +238,9 @@ size_t netpacket::append (short val)
 {
         val = htons(val);
         memcpy( data, &val, 2); //copy 2 bytes
-        length += 2;
+        position += 2;
         
-        return length;
+        return position;
 }
 
 //32 bit integer
@@ -248,9 +248,9 @@ size_t netpacket::append (unsigned long val)
 {
         val = htonl(val);
         memcpy( data, &val, sizeof(unsigned long)); //copy 4 bytes
-        length += sizeof(unsigned long);
+        position += sizeof(unsigned long);
         
-        return length;
+        return position;
 }
 
 //32 bit integer
@@ -258,9 +258,9 @@ size_t netpacket::append (long val)
 {
         val = htonl(val);
         memcpy( data, &val, sizeof(long)); //copy 4 bytes
-        length += sizeof(long);
+        position += sizeof(long);
         
-        return length;
+        return position;
 }
 
 //64 bit integer
@@ -285,17 +285,17 @@ size_t netpacket::append (double val)
 size_t netpacket::append (const char *val, const size_t size)
 {
   
-    memcpy( &(data[length]), val, size); //copy all bytes
-    length += size;
-    return length;
+    memcpy( &(data[position]), val, size); //copy all bytes
+    position += size;
+    return position;
 }
 
 //Byte array.  Don't reverse it :)
 size_t netpacket::append (const unsigned char *val, size_t size)
 {
-    memcpy( &(data[length]), val, size); //copy all bytes
-    length += size;
-    return length;        
+    memcpy( &(data[position]), val, size); //copy all bytes
+    position += size;
+    return position;        
 }
 
 //TODO: wchar_t array

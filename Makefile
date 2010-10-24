@@ -3,11 +3,13 @@
 BIN         = libnet--.a
 SRCFILES    = netpacket.cpp netbase.cpp netclient.cpp netserver.cpp
 HEADERS     = netpacket.h netbase.h netclient.h netserver.h
+INCLUDES    = 
+LOGFILES    = network.log
 DEBUG       = on
 
 
 #Build rules for a library in MinGW
-include src/lib.MinGW.mak
+include makefiles/lib.MinGW.mak
 
 #What to do for make install
 INSTALL_INCLUDE = ../include

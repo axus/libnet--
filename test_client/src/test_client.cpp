@@ -24,7 +24,7 @@ size_t print_pkt( netpacket* pkt, void *cb_data);
 //MAIN
 int main (int argc, char *argv[])
 {
-  
+    int result = 0;
     string server = "localhost";
     const short port = 80, lport = 13371;
     string http_request("GET / HTTP/1.1\r\n");
@@ -46,7 +46,7 @@ int main (int argc, char *argv[])
     Client.setPktCB( print_pkt, NULL);
 
     //Create http GET packet        
-    unsigned char buffer[netbase::NET_MAX_RECV_SIZE];
+    unsigned char buffer[netbase::NETMM_MAX_RECV_SIZE];
     size_t index=0;
     strncpy((char*)(buffer + index), http_request.c_str(), http_request.length());
     netpacket http_get_pkt( http_request.length(), buffer + index);
@@ -71,7 +71,7 @@ int main (int argc, char *argv[])
 
         if (rv == SOCKET_ERROR) {
             cout << "Socket error: " << Client.lastError << endl;
-            goto disconnect;
+            return 2;
         }
         else if (rv == 0) {
             //Nothing happened, increment passedtime
@@ -82,10 +82,10 @@ int main (int argc, char *argv[])
         }
     }
 
-disconnect:
+    //Disconnect from server
     Client.doDisconnect();
 
-    return connection;
+    return 0;
 }
 
 //Callback

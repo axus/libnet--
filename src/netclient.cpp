@@ -170,7 +170,7 @@ int netclient::doDisconnect()
         if (ready) {
         
         /*
-            //Add explicit disconnect message here
+            //You can add explicit disconnect message here
             char quitMessage[9] = "exit";
             netpacket pkt( 8, (unsigned char*)quitMessage);
             sendPacket( sdServer, pkt);

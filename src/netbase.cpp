@@ -27,7 +27,7 @@ netbase::netbase(unsigned int max): ready(false), sdMax(-1), conMax( max),
     conCB(connectionCB), conCBD(NULL), allCB(incomingCB), allCBD(NULL)
 {
     //Allocate memory for the ring buffer where incoming packets will drop
-    myBuffer = new unsigned char[NET_MEMORY_SIZE << 1];
+    myBuffer = new unsigned char[NETMM_MEMORY_SIZE << 1];
 
     //Zero out the socket descriptor set
     FD_ZERO( &sdSet);
@@ -114,6 +114,43 @@ bool netbase::removeCB( int c)
     return result;
 }
 
+//Set callback for what to do when new connection is created
+void netbase::setConnectCB( connectionFP cbFunc, void *cbData)
+{
+    conCB = cbFunc;
+    conCBD = cbData;
+}
+
+
+//Add disconnection callback for incoming packets on matching connection *c*
+bool netbase::setDisconnectCB( int c, connectionFP cbFunc, void *cbData )
+{
+    bool result = true;
+
+    //Map c -> cbFunc
+    result = disconnectCB_map.insert( std::map< int, connectionFP >::value_type( c, cbFunc)).second;
+    
+    //Map c -> cbData
+    result = result && disconnectCBD_map.insert( std::map< int, void* >::value_type( c, cbData)).second;
+    
+    //Return value: was callback and callback data inserted successfully?
+    return result;
+}
+
+//Remove disconnection callbacks for connection *c*
+bool netbase::removeDisconnectCB( int c)
+{
+    bool result = true;
+    
+    //Unmap c -> callback function
+    result = (disconnectCB_map.erase( c) > 0);
+    
+    //Unmap c -> callback data
+    result = result && (disconnectCBD_map.erase( c) > 0);
+    
+    //Return value: was there a callback to remove?
+    return result;
+}
 
 //Clear the incoming packet callbacks
 void netbase::removeAllCB()
@@ -156,10 +193,10 @@ int netbase::sendPacket( int sd, netpacket &msg) {
         return -1;
     }
 
-    //Trying to send on socket
+    //Trying to send on socket. TODO: repeat while (rv > 0 && totalSent < length)
     rv = send(sd, (const char*)msg.get_ptr(), length, /*flags*/0);
 
-    //TODO: while (rv > 0 && totalSent < length + NET_MSG_HEADER_BYTES
+    //Return on socket errors
     if (rv == SOCKET_ERROR) {
         debugLog << "Socket Error:" << getSocketError() << endl;
         return -1;
@@ -388,11 +425,11 @@ int netbase::readSockets()
     
         if (isClosed(con)) {
             //Call associated disconnect callback right away
-            map< int, disconnectFP >::const_iterator dcb_iter;
+            map< int, connectionFP >::const_iterator dcb_iter;
             dcb_iter = disconnectCB_map.find(con);
             if ( dcb_iter != disconnectCB_map.end() ) {
                 //Call the disconnection callback, with mapped void *data
-                disconnectFP dcFunc = (*dcb_iter).second;
+                connectionFP dcFunc = (*dcb_iter).second;
                 dcFunc( con, disconnectCBD_map.find(con)->second);
             }
             else {
@@ -408,7 +445,7 @@ int netbase::readSockets()
     }
   
     //If myIndex exceeds threshold, set it back to 0.
-    if (myIndex > NET_MEMORY_SIZE) {
+    if (myIndex > NETMM_MEMORY_SIZE) {
         myIndex = 0;
     }
     
@@ -431,7 +468,7 @@ int netbase::recvSocket(int sd, unsigned char* buffer)
 
     do {
         //Read incoming bytes to buffer
-        rv = recv( sd, (char*)(buffer + offset), NET_MAX_RECV_SIZE,  0 );
+        rv = recv( sd, (char*)(buffer + offset), NETMM_MAX_RECV_SIZE,  0 );
     
         if (rv == 0) {
             debugLog << "Socket " << sd << " disconnected" << endl;

@@ -29,19 +29,8 @@ class netbase {
 
 public:
 
-    //Constants
-    static const size_t NET_MSG_VERSION     = 0x0001;
-    static const size_t NET_WSA_VER         = 0x0202;
-    static const size_t NET_MAX_ID          = 0xFFFF;
-    static const size_t NET_MAX_VERSION     = 0xFFFF;
-    static const size_t NET_CB_VERSION      = 0x4000;
-    static const size_t NET_CONNECT_ID      = 0x0000;
-    static const size_t NET_DISCONNECT_ID   = 0x0001;
-    static const size_t NET_MAX_RECV_SIZE   = 0x40000;   //256K
-    static const size_t NET_MEMORY_SIZE     = 0x1000000; //16MB
-
-    typedef size_t (*disconnectFP)( int ID, void *cb_data);
-    typedef size_t (*newConnFP)( int ID, void *cb_data);
+    //Function pointer types
+    typedef size_t (*connectionFP)( int ID, void *cb_data);
 
     //Constructors
     netbase(unsigned int);
@@ -53,14 +42,20 @@ public:
     //Remove callbacks for connection *c*
     bool removeCB( int c);
 
+    //Set callback for what to do when new connection is created
+    void setConnectCB( connectionFP cbFunc, void *cbData);
+
+    //Set callback for what to do when connection drops on other side
+    bool setDisconnectCB( int c, connectionFP cbFunc, void *cbData );
+    
+    //Remove disconnection callbacks for connection *c*
+    bool removeDisconnectCB( int c);
+
     //Remove callbacks for every connection
     void removeAllCB();
 
     //Update allCB and allCBD: callback for all incoming packets
     void setPktCB( netpacket::netPktCB cbFunc, void *cbData);
-
-    //Set callback for what to do when new connection is created
-    void setConnectCB( newConnFP cbFunc, void *cbData);
 
     //const functions
     bool isConnected() const;
@@ -76,8 +71,12 @@ public:
     //Public data members
     mutable std::ofstream debugLog;  //want this to be publicly accessible
     mutable std::string lastError;  //External classes should check this for error string
+    static const size_t NETMM_MAX_RECV_SIZE   = 0x40000;   //256K
 
 protected:
+    //Constants
+    static const size_t NETMM_MEMORY_SIZE     = 0x1000000; //16MB
+
     //Network parameters
     struct timeval timeout; //Timeout interval
     bool ready;             //Ready to continue?
@@ -93,7 +92,7 @@ protected:
     size_t lastMessage;  //Increment each time a message is sent out
 
     //Function pointer for when a new connection is received
-    newConnFP conCB;
+    connectionFP conCB;
     void *conCBD;
 
     //Default function and data for incoming packets
@@ -101,7 +100,7 @@ protected:
     void *allCBD;
     
     //Map connection IDs to callback function/data for dropped connections
-    std::map< int, disconnectFP > disconnectCB_map;
+    std::map< int, connectionFP > disconnectCB_map;
     std::map< int, void* > disconnectCBD_map;
 
     //Map connection IDs to callback function/data for incoming packets

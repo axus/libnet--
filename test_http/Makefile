@@ -1,20 +1,19 @@
-# Test: Connect to Google, send HTTP GET request, print incoming packets
+# Test of libnet-- netserver class.  Listen on HTTP port, send canned HTML response.
 
 BIN         = test_http.exe
 SRCFILES    = test_http.cpp
 LIBS        = -L../ -lnet-- -lwsock32
 INCLUDES    = -I../src
+LOGFILES    = network.log
 DEBUG       = on
 
-#Build rules for a library in MinGW
-include src/bin.MinGW.mak
 
-#What to do for make install
+#Build rules for a binary in MinGW
+include ../makefiles/bin.MinGW.mak
+
+
+#How to install
 INSTALL_BIN = ../
-
-clean2: clean
-	-rm -f network.log
-	
 install:
 	cp $(BIN) $(INSTALL_BIN)/
 

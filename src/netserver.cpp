@@ -200,7 +200,7 @@ int netserver::checkPort()
             else {
                 //Report new connection
                 //addCB( &cb_incoming, (void*)this);
-                conCB( connection, (void*)this);
+                conCB( connection, conCBD);
             }
         } else {
           ;//Existing connection has something to say
