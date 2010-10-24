@@ -24,7 +24,7 @@ size_t print_pkt( netpacket* pkt, void *cb_data);
 //MAIN
 int main (int argc, char *argv[])
 {
-    int result = 0;
+    //int result = 0;
     string server = "localhost";
     const short port = 80, lport = 13371;
     string http_request("GET / HTTP/1.1\r\n");

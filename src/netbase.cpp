@@ -86,7 +86,7 @@ void netbase::setPktCB( netpacket::netPktCB cbFunc, void* dataCBD  )
 
 
 //Add a callback for incoming packets on matching connection *c*
-bool netbase::addCB( int c, netpacket::netPktCB cbFunc, void* cbData )
+bool netbase::setConPktCB( int c, netpacket::netPktCB cbFunc, void* cbData )
 {
     bool result = true;
 
@@ -101,7 +101,7 @@ bool netbase::addCB( int c, netpacket::netPktCB cbFunc, void* cbData )
 }
 
 //Remove callbacks for connection *c*
-bool netbase::removeCB( int c)
+bool netbase::unsetConPktCB( int c)
 {
     bool result = true;
     
@@ -133,14 +133,18 @@ void netbase::setDisconnectCB( connectionFP cbFunc, void *cbData )
 //Remove disconnection callback
 void netbase::removeDisconnectCB()
 {
-    
+    disCB = disconnectionCB;
+    disCBD = this;
 }
 
-//Clear the incoming packet callbacks
-void netbase::removeAllCB()
+//Clear the generic and connection specific incoming packet callbacks
+void netbase::unsetAllPktCB()
 {
+    //Affects connection specific callbacks
     packetCB_map.clear();
     packetCBD_map.clear();
+
+    //Affects all callbacks
     allCB = incomingCB;
     allCBD = NULL;
 

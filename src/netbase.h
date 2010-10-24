@@ -36,11 +36,20 @@ public:
     netbase(unsigned int);
     virtual ~netbase();
 
+    //Send packet "pkt" on socket "sd"
+    int sendPacket( int sd, netpacket &pkt);
+
+    //Update allCB and allCBD: callback for all incoming packets
+    void setPktCB( netpacket::netPktCB cbFunc, void *cbData);
+
     //Add a callback for incoming packets on matching connection *c*
-    bool addCB( int c, netpacket::netPktCB cbFunc, void *cbData );
+    bool setConPktCB( int c, netpacket::netPktCB cbFunc, void *cbData );
     
     //Remove callbacks for connection *c*
-    bool removeCB( int c);
+    bool unsetConPktCB( int c);
+
+    //Remove generic and connection-specific incoming packet callbacks
+    void unsetAllPktCB();
 
     //Set callback for what to do when new connection is created
     void setConnectCB( connectionFP cbFunc, void *cbData);
@@ -52,18 +61,9 @@ public:
     void removeDisconnectCB();
 
 
-    //Remove callbacks for every connection
-    void removeAllCB();
-
-    //Update allCB and allCBD: callback for all incoming packets
-    void setPktCB( netpacket::netPktCB cbFunc, void *cbData);
-
     //const functions
     bool isConnected() const;
     bool isClosed(int sd) const;   //Is socket closed?
-
-    //Send packet "pkt" on socket "sd"
-    int sendPacket( int sd, netpacket &pkt);
 
     //Logging functions
     bool openLog() const;     //will open the debugLog, if not open already

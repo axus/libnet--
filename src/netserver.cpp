@@ -199,7 +199,6 @@ int netserver::checkPort()
             }
             else {
                 //Report new connection
-                //addCB( &cb_incoming, (void*)this);
                 conCB( connection, conCBD);
             }
         } else {
