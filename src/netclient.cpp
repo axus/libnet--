@@ -102,8 +102,8 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
         if (WSAGetLastError() == WSAEWOULDBLOCK) {
              rv = select(sdMax+1, (fd_set *) 0, &sdConnSet, (fd_set *) 0, &connTimeout);
              if (rv == 0) {
-                debugLog << "Timeout waiting to connect to server" << endl;
-                lastError = "Timed out";
+                debugLog << "Timeout to " << serverAddress << endl;
+                lastError = "Timed out: " + serverAddress;
                 return SOCKET_ERROR;      //Try again later
             }
         }
