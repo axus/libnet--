@@ -5,7 +5,7 @@ SRCFILES    = netpacket.cpp netbase.cpp netclient.cpp netserver.cpp
 HEADERS     = netpacket.h netbase.h netclient.h netserver.h
 INCLUDES    = 
 LOGFILES    = network.log
-###DEBUG       = on
+DEBUG       = on
 
 
 #Build rules for a library in MinGW

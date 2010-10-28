@@ -88,9 +88,11 @@ int main (int argc, char *argv[])
     return 0;
 }
 
-//Callback
+//Callback, return number of bytes printed from packet
 size_t print_pkt( netpacket* pkt, void *cb_data)
 {
+    size_t result = pkt->get_length();  //The bytes.  All of them.
+    
     cout << (const char *)(pkt->get_ptr()) << endl;
-    return 0;
+    return result;
 }

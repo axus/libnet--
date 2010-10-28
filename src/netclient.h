@@ -16,6 +16,7 @@ public:
     int doDisconnect();
     int run();      //Look for incoming messages
     bool setConnTimeout( int seconds=3, int microsec=0);
+    int closeSocket( int sd);
 
 
 protected:
@@ -23,7 +24,6 @@ protected:
     int sdServer;
     short serverPort;
 
-    int closeSocket( int sd);
 
 };
 

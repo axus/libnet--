@@ -39,7 +39,7 @@ public:
     //Send packet "pkt" on socket "sd"
     int sendPacket( int sd, netpacket &pkt);
 
-    //Update allCB and allCBD: callback for all incoming packets
+    //Set incoming packet callback.  Return value of cbFunc *MUST* be number of bytes consumed.
     void setPktCB( netpacket::netPktCB cbFunc, void *cbData);
 
     //Add a callback for incoming packets on matching connection *c*
@@ -89,6 +89,8 @@ protected:
     
     //Use a buffer for all incoming packets
     unsigned char *myBuffer;
+    //TODO: buffer per connection, that 
+    
     size_t myIndex; //offset in buffer
     size_t lastMessage;  //Increment each time a message is sent out
 
@@ -107,6 +109,9 @@ protected:
     //Map connection IDs to callback function/data for incoming packets
     std::map< int, netpacket::netPktCB > packetCB_map;
     std::map< int, void* > packetCBD_map;
+
+    //Map socket descriptor to sequential index, for memory pointing fun.
+    std::map<int, size_t> conIndexMap;
 
     //Modify a socket to be non-blocking
     int unblockSocket(int); 
@@ -134,22 +139,12 @@ protected:
     void debugBuffer( unsigned char* buffer, int buflen) const;
     std::string getSocketError() const;
 
-    //Default functions for function pointers
+    //Default incoming packet callback.  Return size of packet.
     static size_t incomingCB( netpacket* pkt, void *CBD);
+    
+    //Default connect/disconnect callbacks.  Return socket descriptor.
     static size_t connectionCB( int con, void *CBD);
     static size_t disconnectionCB( int con, void *CBD);
 };
-
-/*    
-    //Set callback for what to do when connection drops on other side
-    bool setDisconnectCB( int c, connectionFP cbFunc, void *cbData );
-    
-    //Remove disconnection callbacks for connection *c*
-    bool removeDisconnectCB( int c);
-
-    //Map connection IDs to callback function/data for dropped connections
-    std::map< int, connectionFP > disconnectCB_map;
-    std::map< int, void* > disconnectCBD_map;
-*/
 
 #endif

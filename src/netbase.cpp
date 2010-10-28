@@ -24,8 +24,8 @@ using std::setw;
 //Constructor, specify the maximum client connections
 netbase::netbase(unsigned int max): ready(false), sdMax(-1), conMax( max),
     myBuffer(NULL), myIndex(0), lastMessage(-1), 
-    conCB(connectionCB), conCBD(NULL), disCB(disconnectionCB), disCBD(NULL),
-    allCB(incomingCB), allCBD(NULL)
+    conCB(connectionCB), conCBD(this), disCB(disconnectionCB), disCBD(this),
+    allCB(incomingCB), allCBD(this)
 {
     //Allocate memory for the ring buffer where incoming packets will drop
     myBuffer = new unsigned char[NETMM_MEMORY_SIZE << 1];
@@ -488,34 +488,54 @@ int netbase::recvSocket(int sd, unsigned char* buffer)
     return offset;  //Return total number of bytes received
 }
 
-//Default functions for function pointers
+//Default functions for function pointers.  Your replacement must return number of bytes consumed.
 size_t netbase::incomingCB( netpacket* pkt, void *CBD) {
+  
+    
     if (pkt == NULL) {
 #ifdef DEBUG
         std::cerr << "Null packet?" << endl;
 #endif
         return -1;
     }
+
+    if (CBD == NULL) {
 #ifdef DEBUG
-    std::cerr << endl << "Packet on #" << pkt->ID << endl;
+        std::cerr << "Null callback data on incomingCB!" << endl;
+        std::cerr << "Packet on #" << pkt->ID << endl;
 #endif
-    return 0;
+    } else {
+        ((netbase*)CBD)->debugLog << "Packet on #" << pkt->ID << endl;
+    }
+
+    return pkt->get_length();
 }
 
+//Default new incoming connection callback
 size_t netbase::connectionCB( int con, void *CBD) {
 
-#ifdef DEBUG    
-    std::cerr << endl << "New connection #" << con << endl;
+#ifdef DEBUG
+    if ( CBD == NULL) {
+        std::cerr << "Null callback data on connectionCB!" << endl;
+        std::cerr << "New connection #" << con << endl;
+    } else {
+        ((netbase*)CBD)->debugLog << "New connection #" << con << endl;
+    }
 #endif
-    return 0;
+    return con;
 };
 
+//Default disconnect callback
 size_t netbase::disconnectionCB( int con, void *CBD) {
-
-#ifdef DEBUG    
-    std::cerr << endl << "Lost connection #" << con << endl;
+#ifdef DEBUG
+    if ( CBD == NULL) {
+        std::cerr << "Null callback data on disconnectionCB!" << endl;
+        std::cerr << "Dropped connection #" << con << endl;
+    } else {
+        ((netbase*)CBD)->debugLog << "Dropped connection #" << con << endl;
+    }
 #endif
-    return 0;
+    return con;
 };
 
 

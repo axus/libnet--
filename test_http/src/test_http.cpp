@@ -90,7 +90,7 @@ size_t send_response( netpacket* pkt, void *cb_data)
 {
     //Get packet info
     int connection = pkt->ID;
-    size_t result;
+    size_t result = pkt->get_length();
 
     //Get response info from cb_data
     serverResponse *response = (serverResponse*)cb_data;
@@ -103,7 +103,7 @@ size_t send_response( netpacket* pkt, void *cb_data)
     result = response->server->sendPacket(connection, http_response_pkt);
     cout << "s" << flush;
     
-    //Return value of sendPacket
+    //Return number of bytes read (all of them)
     return result;
 }
 
@@ -120,30 +120,3 @@ size_t print_disconnect( int c, void *cb_data)
     cout << "Disconnect on #" << c << endl;
     return 0;
 }
-
-/*
-
-typedef struct {
-    netserver *server;
-    netbase::connectionFP cb;
-} serverCallback;
-
-
-    //Set client disconnect callback
-    serverCallback connect_data = { &Server, print_disconnect};
-    Server.setConnectCB( add_disconnectCB, &connect_data);
-
-
-// Connection callback
-size_t add_disconnectCB( int c, void *cb_data)
-{
-    cout << "Connect on #" << c << endl;
-    serverCallback *data = (serverCallback*)cb_data;
-    
-    //Set connection specific disconnect on server
-    data->server->setDisconnectCB( c, data->cb, data->server);
-    
-    return 0;
-}
-*/
-
