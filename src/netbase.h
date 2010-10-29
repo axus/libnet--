@@ -39,8 +39,13 @@ public:
     //Send packet "pkt" on socket "sd"
     int sendPacket( int sd, netpacket &pkt);
 
+    //Close socket "sd"
+    bool disconnect( int sd);
+
+/*
     //Set incoming packet callback.  Return value of cbFunc *MUST* be number of bytes consumed.
     void setPktCB( netpacket::netPktCB cbFunc, void *cbData);
+*/
 
     //Add a callback for incoming packets on matching connection *c*
     bool setConPktCB( int c, netpacket::netPktCB cbFunc, void *cbData );
@@ -60,9 +65,7 @@ public:
     //Remove disconnect callback
     void removeDisconnectCB();
 
-
     //const functions
-    bool isConnected() const;
     bool isClosed(int sd) const;   //Is socket closed?
 
     //Logging functions
@@ -72,7 +75,9 @@ public:
     //Public data members
     mutable std::ofstream debugLog;  //want this to be publicly accessible
     mutable std::string lastError;  //External classes should check this for error string
-    static const size_t NETMM_MAX_RECV_SIZE   = 0x40000;   //256K
+    static const size_t NETMM_MAX_RECV_SIZE   = 0x10000;   //64K
+    static const size_t NETMM_MAX_SOCKET_DESCRIPTOR = 0xFFFF; //64K
+    static const size_t NETMM_CON_BUFFER_SIZE = (NETMM_MAX_RECV_SIZE << 1);   //128K
 
 protected:
     //Constants
@@ -88,10 +93,18 @@ protected:
     unsigned int conMax;    //Max connections allowed
     
     //Use a buffer for all incoming packets
-    unsigned char *myBuffer;
-    //TODO: buffer per connection, that 
+    //unsigned char *myBuffer;
     
-    size_t myIndex; //offset in buffer
+    //Each connection gets its own buffer
+    unsigned char* conBuffer[NETMM_MAX_SOCKET_DESCRIPTOR];
+    size_t conBufferIndex[NETMM_MAX_SOCKET_DESCRIPTOR];
+    size_t conBufferLength[NETMM_MAX_SOCKET_DESCRIPTOR];
+    size_t conBufferSize[NETMM_MAX_SOCKET_DESCRIPTOR];
+    
+    // Buffer         Index   Length                                       Size
+    // |  (consumed)    |       |                                             |
+    // |----------------------------------------------------------------------|
+    
     size_t lastMessage;  //Increment each time a message is sent out
 
     //Function pointer for when a new connection is received
@@ -102,9 +115,11 @@ protected:
     connectionFP disCB;
     void *disCBD;
 
+/*
     //Default function and data for incoming packets
     netpacket::netPktCB allCB; 
     void *allCBD;
+*/
 
     //Map connection IDs to callback function/data for incoming packets
     std::map< int, netpacket::netPktCB > packetCB_map;
@@ -131,9 +146,9 @@ protected:
     //Closes socket, sets it to INVALID_SOCKET
     virtual int closeSocket(int sd);      
 
-    //Create netpacket from data on incoming connection
+    //Create netpacket from buffer
     //We must delete it when finished!!
-    netpacket* getPacket( int ID, unsigned char* buffer, short len);
+    netpacket* makePacket( int ID, unsigned char* buffer, short len);
     
     //Debugging helpers
     void debugBuffer( unsigned char* buffer, int buflen) const;

@@ -43,7 +43,7 @@ class netpacket {
     //Info
         size_t ID;   //Unique identifier for this packet... if you bother to set it!
         
-        size_t get_length() const { return position; }; //Return used byte count
+        size_t get_position() const { return position; }; //Return used byte count
         size_t get_maxsize() const { return maxsize; }; //Return max byte count
         const unsigned char* get_ptr() { return data; }; //Return pointer to entire packet data
     

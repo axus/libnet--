@@ -11,18 +11,21 @@ public:
     netclient();
     ~netclient();
 
-    //Network functions
+    //Open a connection and return connection ID
     int doConnect( const std::string& address, int remotePort, int localPort = 0);
-    int doDisconnect();
+    
+    //Disconnect all open connections
+    bool doDisconnect();
+    
     int run();      //Look for incoming messages
     bool setConnTimeout( int seconds=3, int microsec=0);
-    int closeSocket( int sd);
 
 
 protected:
     struct timeval connTimeout;     //Connection timeout
     int sdServer;
     short serverPort;
+    int closeSocket( int sd);
 
 
 };

@@ -43,7 +43,7 @@ int main (int argc, char *argv[])
     netclient Client;
     
     //Add callback for all received packets
-    Client.setPktCB( print_pkt, NULL);
+    //Client.setPktCB( print_pkt, NULL);
 
     //Create http GET packet        
     unsigned char buffer[netbase::NETMM_MAX_RECV_SIZE];
@@ -58,6 +58,9 @@ int main (int argc, char *argv[])
         cout << "Connection error: " << Client.lastError << endl;
         return 1;
     }
+
+    //Set connection callback
+    Client.setConPktCB( connection, print_pkt, NULL);
 
     //Send HTTP request... to Google!
     Client.sendPacket( connection, http_get_pkt );
@@ -91,7 +94,7 @@ int main (int argc, char *argv[])
 //Callback, return number of bytes printed from packet
 size_t print_pkt( netpacket* pkt, void *cb_data)
 {
-    size_t result = pkt->get_length();  //The bytes.  All of them.
+    size_t result = pkt->get_maxsize();  //The bytes.  All of them.
     
     cout << (const char *)(pkt->get_ptr()) << endl;
     return result;

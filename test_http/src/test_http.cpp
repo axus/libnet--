@@ -56,16 +56,12 @@ Transfer-Encoding: chunked\
     char buffer[netbase::NETMM_MAX_RECV_SIZE];
     strncpy( buffer, http_response.c_str(), http_response.length() + 1);
     
-    //Set incoming packet callback
-    serverResponse response_data = { &Server , buffer, http_response.length() + 1};
-    Server.setPktCB( send_response, &response_data);
-
     //Set connection callback
-    Server.setConnectCB( print_connect, &Server);
+    serverResponse response_data = { &Server , buffer, http_response.length() + 1};
+    Server.setConnectCB( print_connect, &response_data);
 
     //Set disconnection callback
     Server.setDisconnectCB( print_disconnect, &Server);
-
 
     //Start listening on lport
     Server.openPort(lport);
@@ -90,7 +86,7 @@ size_t send_response( netpacket* pkt, void *cb_data)
 {
     //Get packet info
     int connection = pkt->ID;
-    size_t result = pkt->get_length();
+    size_t result = pkt->get_maxsize();
 
     //Get response info from cb_data
     serverResponse *response = (serverResponse*)cb_data;
@@ -111,6 +107,13 @@ size_t send_response( netpacket* pkt, void *cb_data)
 size_t print_connect( int c, void *cb_data)
 {
     cout << "Connect on #" << c << endl;
+    if (cb_data == NULL) { return 0;}
+    
+    netserver *Server = ((serverResponse*)cb_data)->server;
+    
+    //Add connection specific callback
+    Server->setConPktCB( c, send_response, cb_data);
+    
     return 0;
 }
 

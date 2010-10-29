@@ -23,12 +23,18 @@ using std::setw;
 
 //Constructor, specify the maximum client connections
 netbase::netbase(unsigned int max): ready(false), sdMax(-1), conMax( max),
-    myBuffer(NULL), myIndex(0), lastMessage(-1), 
-    conCB(connectionCB), conCBD(this), disCB(disconnectionCB), disCBD(this),
-    allCB(incomingCB), allCBD(this)
+    lastMessage(-1), 
+    conCB(connectionCB), conCBD(this), disCB(disconnectionCB), disCBD(this)
 {
-    //Allocate memory for the ring buffer where incoming packets will drop
-    myBuffer = new unsigned char[NETMM_MEMORY_SIZE << 1];
+
+    //Set all buffer pointers in map to null
+    for (size_t sd = 0; sd < NETMM_MAX_SOCKET_DESCRIPTOR; sd++)
+    {
+        conBuffer[sd] = NULL;
+        conBufferIndex[sd] = 0;
+        conBufferLength[sd] = 0;
+        conBufferSize[sd] = 0;
+    }
 
     //Zero out the socket descriptor set
     FD_ZERO( &sdSet);
@@ -70,20 +76,15 @@ netbase::~netbase()
     WSACleanup();
 #endif
 
-    //Free space... would get deleted anyways
-    delete myBuffer;
+    //Free space from open connections
+    for (size_t sd = 0; sd < NETMM_MAX_SOCKET_DESCRIPTOR; sd++)
+    {
+        if (conBuffer[sd] != NULL) {
+            delete conBuffer[sd];
+            conBuffer[sd] = NULL;
+        }
+    }
 }
-
-
-//Set default callback function and data
-void netbase::setPktCB( netpacket::netPktCB cbFunc, void* dataCBD  )
-{
-    //Assign defaults
-    allCB = cbFunc;
-    allCBD = dataCBD;
-    
-}
-
 
 //Add a callback for incoming packets on matching connection *c*
 bool netbase::setConPktCB( int c, netpacket::netPktCB cbFunc, void* cbData )
@@ -144,18 +145,9 @@ void netbase::unsetAllPktCB()
     packetCB_map.clear();
     packetCBD_map.clear();
 
-    //Affects all callbacks
-    allCB = incomingCB;
-    allCBD = NULL;
-
     return;
 }
 
-
-//check connection status
-bool netbase::isConnected() const {
-    return ready;
-}
 
 //See if socket is still in connection set
 bool netbase::isClosed(int sd) const {
@@ -166,12 +158,14 @@ bool netbase::isClosed(int sd) const {
 int netbase::sendPacket( int sd, netpacket &msg) {
 
     int rv;
-    const short length = msg.get_length();
+    const short length = msg.get_position();
 
+/*
     if (!ready) {
         debugLog << "Error: Disconnected, can't send" << endl;
         return -1;
     }
+*/
 
     //Check if connection number exists in conSet
     if ( conSet.find( sd ) == conSet.end() ) {
@@ -285,12 +279,14 @@ int netbase::closeSocket(int sd)
 {
     int rv;
 
+    //Check if socket is already closed
     openLog();
     if (sd == (int)INVALID_SOCKET) {
         debugLog << "Socket is already closed" << endl;
         return sd;
     }
 
+    //Close the socket
     rv = closesocket(sd);
     if (rv == SOCKET_ERROR) {
         debugLog << "Error closing socket " << sd << ":" << getSocketError() << endl;
@@ -298,10 +294,36 @@ int netbase::closeSocket(int sd)
 
     //Remove this socket from the list of connected sockets
     conSet.erase(sd);
-    if (FD_ISSET((unsigned int)sd, &sdSet))
+    if (FD_ISSET((unsigned int)sd, &sdSet)) {
         FD_CLR((unsigned int)sd, &sdSet);
-        
+    }
+    
+    //Free the buffer allocated for this socket
+    if (conBuffer[sd] != NULL) {
+        delete conBuffer[sd];
+        conBuffer[sd] = NULL;
+    }
+
+    conBufferIndex[sd] = 0;
+    conBufferLength[sd] = 0;
+    conBufferSize[sd] = 0;
+
     return rv;
+}
+
+//Disconnect specific connection
+bool netbase::disconnect( int con) {
+
+    bool result=false;
+    
+    if (con != (int)(INVALID_SOCKET)) {
+        result = (closeSocket(con) != SOCKET_ERROR);
+        char socketNum[8];
+        sprintf(socketNum, "%d", con);
+        lastError = lastError + string("; Closing socket #") + socketNum;
+    }
+    
+    return result;
 }
 
 //Receive all the data on incoming sockets.  Return number of packets processed.
@@ -328,6 +350,8 @@ int netbase::readIncomingSockets() {
         debugLog << "Incoming message"  << endl;
         rv = readSockets();
     }
+
+    //TODO: loop select statement, then fire callbacks
     
     return rv;
 }
@@ -346,19 +370,45 @@ int netbase::readSockets()
     for (con_iter = socketSet.begin(); con_iter != socketSet.end(); con_iter++) {
         con = *con_iter;
         if (FD_ISSET( con, &sdSet)) {
-            //Data pending from client, get the message (or disconnect)
-            size_t startIndex = myIndex;
-            rv = recvSocket( con, (myBuffer + startIndex) );
-            
+          
+            //Get offset in connection buffer
+            size_t bufferOffset = conBufferLength[con];
+
+            //Resize connection buffer, if needed
+            unsigned char* myBuffer=NULL;
+            if (bufferOffset + netbase::NETMM_MAX_RECV_SIZE > conBufferSize[con]) {
+                //Increase connection buffer size
+                conBufferSize[con] = (conBufferSize[con] << 1);
+                
+                //Copy old buffer to bigger buffer
+                myBuffer = new unsigned char[conBufferSize[con]];
+                memcpy( myBuffer, conBuffer[con], bufferOffset);
+                
+                //Delete old buffer
+                delete conBuffer[con];
+                conBuffer[con] = myBuffer;
+            } else {
+                //Use existing buffer
+                myBuffer = conBuffer[con];
+            }
+
+//TODO: move packet logic to readIncomingSockets
+
+            //Copy the incoming bytes to myBuffer + offset
+            rv = recvSocket( con, (myBuffer + bufferOffset) );
+
             //Point packet object at received bytes
             if ( rv > 0 ) {
-            
-                //Read from buffer into new packet object (don't forget to delete it)
-                netpacket *pkt = getPacket( con, (myBuffer + startIndex), rv);
+
+                //Keep track of buffer offsets
+                conBufferLength[con] += rv;
+                
+                //Packet points at entire unconsumed buffer space
+                netpacket *pkt = makePacket( con, (myBuffer + conBufferIndex[con]), conBufferLength[con]);
                 
                 //Set connection ID for packet
                 pkt->ID = con;
-                
+                                
                 //Add packet to the queue
                 packets.push_back( pkt);
             }
@@ -372,6 +422,7 @@ int netbase::readSockets()
     netpacket::netPktCB callback;
     void *cbData;
     
+    //For each packet on the list
     for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter++) {
 
         //Packet pointer
@@ -380,11 +431,8 @@ int netbase::readSockets()
             debugLog << "NULL packet in my queue??" << endl;
             continue;
         }
-        
-        //Perform the callback run for every incoming packet
-        allCB( pkt, allCBD);
-        
-        //Get connection ID from packet (laaaazy)
+
+        //Get connection ID from packet (I hope we added it earlier!)
         con = pkt->ID;
         
         //Connection specific callback data
@@ -398,10 +446,18 @@ int netbase::readSockets()
         //Find connection specific callback
         cb_iter = packetCB_map.find( con );
         
-        //Run callback, if exists
+        //Run connection specific callback, if exists
         if ( cb_iter != packetCB_map.end()) {
             callback = cb_iter->second;
-            callback( pkt, cbData); //What to do with return value?
+            
+            //Increment buffer index to start of unprocessed data
+            conBufferIndex[con] += callback( pkt, cbData);
+            
+            //Reset buffer if all data has been consumed
+            if (conBufferIndex[con] == conBufferLength[con]) {
+                conBufferIndex[con] = 0;
+                conBufferLength[con] = 0;
+            }
         }
     }
 
@@ -416,16 +472,11 @@ int netbase::readSockets()
     }
 
 
-    //Delete the dynamically created packet objects (but not what they point to)
+    //Delete the dynamically created packet objects (but not what they were point to)
     for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter++) {
         delete (*pkt_iter);
     }
-  
-    //If myIndex exceeds threshold, set it back to 0.
-    if (myIndex > NETMM_MEMORY_SIZE) {
-        myIndex = 0;
-    }
-    
+      
     //Return number of packets processed (not total size)
     return packets.size();
 }
@@ -482,7 +533,7 @@ int netbase::recvSocket(int sd, unsigned char* buffer)
         }
     } while (rs > 0);  //Keep reading if select says there's something here
     
-    myIndex += offset;
+    //myIndex += offset;
     debugLog << "Received " << offset << " bytes on socket " << sd << endl;
 
     return offset;  //Return total number of bytes received
@@ -505,10 +556,11 @@ size_t netbase::incomingCB( netpacket* pkt, void *CBD) {
         std::cerr << "Packet on #" << pkt->ID << endl;
 #endif
     } else {
-        ((netbase*)CBD)->debugLog << "Packet on #" << pkt->ID << endl;
+        ((netbase*)CBD)->debugLog << "Packet on #" << pkt->ID << " len=" << pkt->get_maxsize() << endl;
     }
 
-    return pkt->get_length();
+    //Don't use any bytes from the packet...
+    return 0;
 }
 
 //Default new incoming connection callback
@@ -568,9 +620,10 @@ void netbase::debugBuffer( unsigned char* buffer, int buflen) const
 }
 
 //New packet object, pointing at the data in our big ring buffer
-netpacket *netbase::getPacket( int con, unsigned char *buffer, short len)
+netpacket *netbase::makePacket( int con, unsigned char *buffer, short len)
 {
-    netpacket *result = new netpacket( len, buffer );
+    debugLog << "#" << con << " makePacket len=" << len << endl;
+    netpacket *result = new netpacket( len, buffer, 0 );
     result->ID = con;
     
     return result;
@@ -685,50 +738,3 @@ bool netbase::closeLog() const
 #endif
     return true;
 }
-
-
-            /*
-            map< int, connectionFP >::const_iterator dcb_iter;
-            dcb_iter = disconnectCB_map.find(con);
-            if ( dcb_iter != disconnectCB_map.end() ) {
-                //Call the disconnection callback, with mapped void *data
-                connectionFP dcFunc = (*dcb_iter).second;
-                dcFunc( con, disconnectCBD_map.find(con)->second);
-            }
-            else {
-                debugLog << "Socket #" << con << " closed, no callback" << endl;
-            }
-            */
-
-
-/*
-//Add disconnection callback for incoming packets on matching connection *c*
-bool netbase::setDisconnectCB( int c, connectionFP cbFunc, void *cbData )
-{
-    bool result = true;
-
-    //Map c -> cbFunc
-    result = disconnectCB_map.insert( std::map< int, connectionFP >::value_type( c, cbFunc)).second;
-    
-    //Map c -> cbData
-    result = result && disconnectCBD_map.insert( std::map< int, void* >::value_type( c, cbData)).second;
-    
-    //Return value: was callback and callback data inserted successfully?
-    return result;
-}
-
-//Remove disconnection callbacks for connection *c*
-bool netbase::removeDisconnectCB( int c)
-{
-    bool result = true;
-    
-    //Unmap c -> callback function
-    result = (disconnectCB_map.erase( c) > 0);
-    
-    //Unmap c -> callback data
-    result = result && (disconnectCBD_map.erase( c) > 0);
-    
-    //Return value: was there a callback to remove?
-    return result;
-}
-*/

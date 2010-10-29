@@ -241,30 +241,17 @@ int netserver::acceptConnection()
             << "  Address=" << inet_ntoa( addr.sin_addr )
             << "  Port=" << ntohs(addr.sin_port) << endl;
 
-    conSet.insert( connection );    //Add to the set of connection descriptors
-    //unblockSocket( connection );
+    //Add to the set of connection descriptors
+    conSet.insert( connection );
+    
+    //Allocate buffer for receiving packets
+    conBuffer[connection] = new unsigned char[NETMM_CON_BUFFER_SIZE];
+    conBufferIndex[connection] = 0;
+    conBufferLength[connection] = 0;
+    conBufferSize[connection] = NETMM_CON_BUFFER_SIZE;
 
+    //unblockSocket( connection );
     //Do something with FD_SET ???
 
     return connection;
 }
-
-/*
-//Default function to handle incoming packets
-size_t netserver::handleIncoming( netpacket *pkt) {
-
-    debugLog << "PKT len=" << pkt->get_length() << " ID=" << pkt->ID << endl;
-    return 0;
-}
-
-//Callback function, calls class function using cb_data
-size_t netserver::cb_incoming( netpacket* pkt, void *cb_data)
-{
-    if (cb_data == NULL) {
-        return ~0;
-    }
-    
-    return ((netserver*)cb_data)->handleIncoming( pkt );
-    
-}
-*/

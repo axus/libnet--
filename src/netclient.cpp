@@ -125,11 +125,16 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
         //Add to sdSet
         conSet.insert(sdServer);
         buildSocketSet();
+        
+        //Allocate buffer for receiving packets
+        conBuffer[sdServer] = new unsigned char[NETMM_CON_BUFFER_SIZE];
+        conBufferIndex[sdServer] = 0;
+        conBufferLength[sdServer] = 0;
+        conBufferSize[sdServer] = NETMM_CON_BUFFER_SIZE;
 
         //This is not needed since there is only one connection!!
         if (sdMax < sdServer)
             sdMax = sdServer;
-
 
         //Connected, set the member variables
         serverPort = port;
@@ -159,37 +164,31 @@ int netclient::closeSocket( int sd)
 }
 
 //Disconnect from the server... May or may not actually be connected
-int netclient::doDisconnect()
+bool netclient::doDisconnect()
 {
-    int result = 0;
+    int result = false;
 
     openLog();
     if (sdServer != (int)INVALID_SOCKET) {
         
         //Debug information when closing a connected socket
         if (ready) {
-        
-        /*
-            //You can add explicit disconnect message here
-            char quitMessage[9] = "exit";
-            netpacket pkt( 8, (unsigned char*)quitMessage);
-            sendPacket( sdServer, pkt);
-        */;
-        
+            ;   //TODO: optional disconnect packet?
         }
         debugLog << "Closing socket " << sdServer << endl;
         closeSocket(sdServer);      //Base class socket close, handles conSet
         lastError = lastError + string("; Closing socket");
+        result = true;
     }
     else {
         lastError = "Already disconnected";
         debugLog << "Client already disconnected" << endl;
-        result = -1;
     }
     ready = false;
     closeLog();
     return result;
 }
+
 
 //Read the network, handle any incoming data
 int netclient::run()
