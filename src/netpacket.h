@@ -45,7 +45,7 @@ class netpacket {
         
         size_t get_position() const { return position; }; //Return used byte count
         size_t get_maxsize() const { return maxsize; }; //Return max byte count
-        const unsigned char* get_ptr() { return data; }; //Return pointer to entire packet data
+        const unsigned char* get_ptr() const { return data; }; //Return pointer to entire packet data
     
     //Read from packet
         template <class T> size_t read(T&);                   //Read any class

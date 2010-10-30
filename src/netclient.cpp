@@ -7,12 +7,12 @@ using std::endl;
 //  netclient function implementations
 //
 
-netclient::netclient() : netbase( 1), sdServer((int)INVALID_SOCKET), serverPort(-1)
+netclient::netclient( unsigned int maxConns ) : netbase( maxConns) /*, sdServer((int)INVALID_SOCKET)*/
 {
     openLog();
     debugLog << "===Starting client===" << endl;
     
-    //Set the timeout for connecting to the server...
+    //Set the timeout for connecting to a server...
     connTimeout.tv_sec = 3;
     connTimeout.tv_usec = 0;
 }
@@ -21,8 +21,10 @@ netclient::~netclient()
 {
     openLog();
     debugLog << "===Ending client===" << endl << endl;
+/*
     if (sdServer != (int)INVALID_SOCKET)
         closeSocket(sdServer);
+*/
     closeLog();
 
     //Now the base class destructor is invoked by C++
@@ -43,6 +45,7 @@ bool netclient::setConnTimeout( int seconds, int microsec)
 int netclient::doConnect(const string& serverAddress, int port, int lport)
 {
 	struct	sockaddr_in sad;   //Server address struct
+	int sdServer;            //socket descriptor of connection
 	int rv;                    //Return value
 	int namelen = sizeof( struct sockaddr_in);
     struct hostent *host;       //Host name entry
@@ -77,7 +80,7 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
 	sad.sin_addr.s_addr = inet_addr(serverAddress.c_str()); //Convert the server address
 
 
-    //If not a numeric aaddress, resolve it
+    //If not a numeric address, resolve it
 	if (sad.sin_addr.s_addr == INADDR_NONE)
 	{
         host = NULL;    //...
@@ -138,15 +141,13 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
         if (sdMax < sdServer)
             sdMax = sdServer;
 
-        //Connected, set the member variables
-        serverPort = port;
-        ready = true;
         return sdServer;
     }
 
     return 0;       //Still connecting!!  Try back later...
 }
 
+/*
 //Inherited function for closing a network socket
 int netclient::closeSocket( int sd)
 {
@@ -168,8 +169,8 @@ int netclient::closeSocket( int sd)
 //Disconnect from the server... May or may not actually be connected
 bool netclient::doDisconnect()
 {
-    int result = false;
 
+    int result = false;
     openLog();
     if (sdServer != (int)INVALID_SOCKET) {
         
@@ -177,6 +178,7 @@ bool netclient::doDisconnect()
         if (ready) {
             ;   //TODO: optional disconnect packet?
         }
+
         debugLog << "Closing socket " << sdServer << endl;
         closeSocket(sdServer);      //Base class socket close, handles conSet
         lastError = lastError + string("; Closing socket");
@@ -186,10 +188,11 @@ bool netclient::doDisconnect()
         lastError = "Already disconnected";
         debugLog << "Client already disconnected" << endl;
     }
-    ready = false;
+    //ready = false;    
     closeLog();
     return result;
 }
+*/
 
 
 //Read the network, handle any incoming data

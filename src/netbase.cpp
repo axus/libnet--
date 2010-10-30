@@ -76,6 +76,8 @@ netbase::~netbase()
     WSACleanup();
 #endif
 
+    debugLog << "~netbase" << endl;
+
     //Free space from open connections
     for (size_t sd = 0; sd < NETMM_MAX_SOCKET_DESCRIPTOR; sd++)
     {
@@ -617,9 +619,9 @@ void netbase::debugBuffer( unsigned char* buffer, int buflen) const
 //New packet object, pointing at the data in our big ring buffer
 netpacket *netbase::makePacket( int con, unsigned char *buffer, short len)
 {
-    debugLog << "#" << con << " makePacket len=" << len << endl;
     netpacket *result = new netpacket( len, buffer, 0 );
     result->ID = con;
+    debugPacket(result);
     
     return result;
 }
@@ -732,4 +734,39 @@ bool netbase::closeLog() const
         debugLog.close();
 #endif
     return true;
+}
+
+//Print contents of packet.  Wrap unprintable bytes in { }
+size_t netbase::debugPacket(const netpacket *pkt) const
+{
+
+    if (pkt == NULL) {
+        debugLog << "Null packet" << endl;
+        return 0;
+    }
+    
+    //Useful size depends if the packet is being sent, or received
+    size_t position = pkt->get_position();
+    size_t size = pkt->get_maxsize();
+    size_t length = (position == 0 ? size : position);
+    
+    debugLog << "Length=" << length << " ID=" << pkt->ID << " String=";
+    const unsigned char *mybytes = pkt->get_ptr();
+    unsigned char mybyte;
+    char hexvalue[8];
+    
+    for (size_t index= 0; index < length; index++) {
+        mybyte = mybytes[index];
+        if (mybyte >= ' ' && mybyte <= '~') {
+            debugLog << (char)mybyte;
+        } else {
+            sprintf( hexvalue, "{0x%02X}", mybyte);
+            debugLog << hexvalue;
+        }
+    }
+    
+    debugLog << endl;
+    
+    //Did not consume any bytes :)
+    return 0;
 }

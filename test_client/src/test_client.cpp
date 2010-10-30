@@ -40,7 +40,7 @@ int main (int argc, char *argv[])
     http_request.append( "\r\n\r\n");
 
     //Create client
-    netclient Client;
+    netclient Client(2);
     
     //Add callback for all received packets
     //Client.setPktCB( print_pkt, NULL);
@@ -86,7 +86,7 @@ int main (int argc, char *argv[])
     }
 
     //Disconnect from server
-    Client.doDisconnect();
+    Client.disconnect(connection);
 
     return 0;
 }

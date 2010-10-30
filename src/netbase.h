@@ -142,6 +142,7 @@ protected:
     //Debugging helpers
     void debugBuffer( unsigned char* buffer, int buflen) const;
     std::string getSocketError() const;
+    size_t debugPacket(const netpacket *pkt) const;
 
     //Default incoming packet callback.  Return size of packet.
     static size_t incomingCB( netpacket* pkt, void *CBD);
