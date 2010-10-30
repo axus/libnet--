@@ -49,12 +49,14 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
 
     openLog();
 
+/*
     //Make sure we aren't already connected !!!  Client only allows one connection
     if (ready) {
         debugLog << "Already connected on socket " << sdServer << endl;
         lastError = "Already connected";
         return -1;
     }
+*/
 
     //Create a socket
     sdServer = socket( AF_INET, SOCK_STREAM, 0);

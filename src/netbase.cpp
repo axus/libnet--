@@ -160,13 +160,6 @@ int netbase::sendPacket( int sd, netpacket &msg) {
     int rv;
     const short length = msg.get_position();
 
-/*
-    if (!ready) {
-        debugLog << "Error: Disconnected, can't send" << endl;
-        return -1;
-    }
-*/
-
     //Check if connection number exists in conSet
     if ( conSet.find( sd ) == conSet.end() ) {
         debugLog << "Error: No socket " << sd << " to send on" << endl;
@@ -291,6 +284,8 @@ int netbase::closeSocket(int sd)
     if (rv == SOCKET_ERROR) {
         debugLog << "Error closing socket " << sd << ":" << getSocketError() << endl;
     }
+    
+    debugLog << "Closing socket " << sd << endl;
 
     //Remove this socket from the list of connected sockets
     conSet.erase(sd);

@@ -42,11 +42,6 @@ public:
     //Close socket "sd"
     bool disconnect( int sd);
 
-/*
-    //Set incoming packet callback.  Return value of cbFunc *MUST* be number of bytes consumed.
-    void setPktCB( netpacket::netPktCB cbFunc, void *cbData);
-*/
-
     //Add a callback for incoming packets on matching connection *c*
     bool setConPktCB( int c, netpacket::netPktCB cbFunc, void *cbData );
     
@@ -114,12 +109,6 @@ protected:
     //Function pointer for when disconnection occurs
     connectionFP disCB;
     void *disCBD;
-
-/*
-    //Default function and data for incoming packets
-    netpacket::netPktCB allCB; 
-    void *allCBD;
-*/
 
     //Map connection IDs to callback function/data for incoming packets
     std::map< int, netpacket::netPktCB > packetCB_map;
