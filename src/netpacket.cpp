@@ -17,6 +17,9 @@ netpacket::~netpacket() {
     }
 }
 
+//Adjust position, for reusing packet
+void netpacket::setp( size_t p) { position = p;}
+
 //
 // Read out data from packet, increment position
 //

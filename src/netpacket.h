@@ -80,8 +80,8 @@ class netpacket {
         size_t append (const char *val, size_t size);          //Character string
         size_t append (const uint8_t *val, size_t size); //byte array
 
-    //Reset packet (to reuse the packet without resizing)
-        void reset() { position = 0;};
+    //Reset position (to reuse the packet without resizing)
+        void setp( size_t p=0);
 };
 
 

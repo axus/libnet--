@@ -382,7 +382,7 @@ int netbase::readSockets()
 
             //Resize connection buffer, if needed
             uint8_t* myBuffer=NULL;
-            if (bufferOffset + netbase::NETMM_MAX_RECV_SIZE > conBufferSize[con]) {
+            while (bufferOffset + netbase::NETMM_MAX_RECV_SIZE > conBufferSize[con]) {
                 //Increase connection buffer size
                 conBufferSize[con] = (conBufferSize[con] << 1);
                 
@@ -393,10 +393,10 @@ int netbase::readSockets()
                 //Delete old buffer
                 delete conBuffer[con];
                 conBuffer[con] = myBuffer;
-            } else {
-                //Use existing buffer
-                myBuffer = conBuffer[con];
             }
+            
+            //Point to connection buffer
+            myBuffer = conBuffer[con];
 
 //TODO: move packet logic to readIncomingSockets
 
@@ -427,6 +427,7 @@ int netbase::readSockets()
     map< int, void* >::const_iterator cbd_iter;
     netpacket::netPktCB callback;
     void *cbData;
+    size_t bytes_read;
     
     //For each packet on the list
     for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter++) {
@@ -456,9 +457,19 @@ int netbase::readSockets()
         if ( cb_iter != packetCB_map.end()) {
             callback = cb_iter->second;
             
-            //Increment buffer index to start of unprocessed data
-            conBufferIndex[con] += callback( pkt, cbData);
             
+            //Keep running callback until no more bytes are read(?)
+            do {
+                debugPacket(pkt);
+                bytes_read = callback( pkt, cbData);
+                conBufferIndex[con] += bytes_read;
+                pkt->setp( conBufferIndex[con]);
+            } while (bytes_read > 0 && conBufferIndex[con] < conBufferLength[con]);
+            /*
+                //TODO: repeat callback when run() is called.
+                bytes_read = callback( pkt, cbData);
+                conBufferIndex[con] += bytes_read;
+            */
             //Reset buffer if all data has been consumed
             if (conBufferIndex[con] == conBufferLength[con]) {
                 conBufferIndex[con] = 0;
@@ -628,7 +639,7 @@ void netbase::debugBuffer( uint8_t* buffer, int buflen) const
         debugLog << endl;
 }
 
-//New packet object, pointing at the data in our big ring buffer
+//New packet object, pointing at the data in a connectin-specific buffer
 netpacket *netbase::makePacket( int con, uint8_t *buffer, int16_t len)
 {
     netpacket *result = new netpacket( len, buffer, 0 );
@@ -760,10 +771,10 @@ size_t netbase::debugPacket(const netpacket *pkt) const
     //Useful size depends if the packet is being sent, or received
     size_t position = pkt->get_position();
     size_t size = pkt->get_maxsize();
-    size_t length = (position == 0 ? size : position);
+    size_t length = size - position;
     
     debugLog << "Length=" << length << " ID=" << pkt->ID << " String=";
-    const uint8_t *mybytes = pkt->get_ptr();
+    const uint8_t *mybytes = (pkt->get_ptr() + position);
     uint8_t mybyte;
     char hexvalue[8];
     
