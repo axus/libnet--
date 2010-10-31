@@ -282,30 +282,39 @@ int netbase::closeSocket(int sd)
     }
 
     //Close the socket
+    debugLog << "Closing socket " << sd << endl;
     rv = closesocket(sd);
     if (rv == SOCKET_ERROR) {
         debugLog << "Error closing socket " << sd << ":" << getSocketError() << endl;
     }
     
-    debugLog << "Closing socket " << sd << endl;
+    removeSocket(sd);
+    cleanSocket(sd);
 
+    return rv;
+}
+
+void netbase::removeSocket(int sd) {
     //Remove this socket from the list of connected sockets
     conSet.erase(sd);
     if (FD_ISSET((unsigned int)sd, &sdSet)) {
         FD_CLR((unsigned int)sd, &sdSet);
     }
-    
+}
+
+//Clean up data associated with socket
+void netbase::cleanSocket(int sd) {
+
     //Free the buffer allocated for this socket
     if (conBuffer[sd] != NULL) {
         delete conBuffer[sd];
         conBuffer[sd] = NULL;
     }
 
+    //Reset index/length/size pointers
     conBufferIndex[sd] = 0;
     conBufferLength[sd] = 0;
     conBufferSize[sd] = 0;
-
-    return rv;
 }
 
 //Disconnect specific connection
@@ -462,9 +471,13 @@ int netbase::readSockets()
     for (con_iter = socketSet.begin(); con_iter != socketSet.end(); con_iter++) {
         con = *con_iter;
     
-        //Disconnection callback if the connection is closed
+        //If the connection is closed...
         if (isClosed(con)) {
+            //Disconnection callback
             disCB( con, disCBD);
+            
+            //Clean up the socket associated data
+            cleanSocket(con);
         }
     }
 
@@ -496,8 +509,8 @@ int netbase::recvSocket(int sd, unsigned char* buffer)
         rv = recv( sd, (char*)(buffer + offset), NETMM_MAX_RECV_SIZE,  0 );
     
         if (rv == 0) {
-            debugLog << "Socket " << sd << " disconnected" << endl;
-            closeSocket(sd);
+            debugLog << "Socket " << sd << " disconnected, remove now, clean later" << endl;
+            removeSocket(sd);
             rs=0;   //Disconnected, nothing more to receive...
             //If we got anything on an earlier loop iteration, will need to process it.
             break;
@@ -530,7 +543,6 @@ int netbase::recvSocket(int sd, unsigned char* buffer)
         }
     } while (rs > 0);  //Keep reading if select says there's something here
     
-    //myIndex += offset;
     debugLog << "Received " << offset << " bytes on socket " << sd << endl;
 
     return offset;  //Return total number of bytes received

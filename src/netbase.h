@@ -66,6 +66,7 @@ public:
     //Logging functions
     bool openLog() const;     //will open the debugLog, if not open already
     bool closeLog() const;    //close the debugLog if open
+    size_t debugPacket(const netpacket *pkt) const;
 
     //Public data members
     mutable std::ofstream debugLog;  //want this to be publicly accessible
@@ -133,7 +134,13 @@ protected:
     int recvSocket(int sd, unsigned char* buffer);
     
     //Closes socket, sets it to INVALID_SOCKET
-    virtual int closeSocket(int sd);      
+    virtual int closeSocket(int sd);
+    
+    //Erase socket descriptor from conSet
+    void removeSocket(int sd);
+    
+    //Free buffer associated with connection
+    void cleanSocket(int sd);
 
     //Create netpacket from buffer
     //We must delete it when finished!!
@@ -142,7 +149,6 @@ protected:
     //Debugging helpers
     void debugBuffer( unsigned char* buffer, int buflen) const;
     std::string getSocketError() const;
-    size_t debugPacket(const netpacket *pkt) const;
 
     //Default incoming packet callback.  Return size of packet.
     static size_t incomingCB( netpacket* pkt, void *CBD);
