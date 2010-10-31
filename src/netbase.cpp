@@ -160,7 +160,7 @@ bool netbase::isClosed(int sd) const {
 int netbase::sendPacket( int sd, netpacket &msg) {
 
     int rv;
-    const short length = msg.get_position();
+    const int16_t length = msg.get_position();
 
     //Check if connection number exists in conSet
     if ( conSet.find( sd ) == conSet.end() ) {
@@ -381,13 +381,13 @@ int netbase::readSockets()
             size_t bufferOffset = conBufferLength[con];
 
             //Resize connection buffer, if needed
-            unsigned char* myBuffer=NULL;
+            uint8_t* myBuffer=NULL;
             if (bufferOffset + netbase::NETMM_MAX_RECV_SIZE > conBufferSize[con]) {
                 //Increase connection buffer size
                 conBufferSize[con] = (conBufferSize[con] << 1);
                 
                 //Copy old buffer to bigger buffer
-                myBuffer = new unsigned char[conBufferSize[con]];
+                myBuffer = new uint8_t[conBufferSize[con]];
                 memcpy( myBuffer, conBuffer[con], bufferOffset);
                 
                 //Delete old buffer
@@ -494,7 +494,7 @@ int netbase::readSockets()
 
 //Recieve incoming data on a buffer, return the number of bytes read in
 //Check if socket is closed after receiving
-int netbase::recvSocket(int sd, unsigned char* buffer)
+int netbase::recvSocket(int sd, uint8_t* buffer)
 {
     int rv, rs;
     size_t offset = 0;
@@ -601,10 +601,10 @@ size_t netbase::disconnectionCB( int con, void *CBD) {
 
 
 //Output the contents of a buffer to the log
-void netbase::debugBuffer( unsigned char* buffer, int buflen) const
+void netbase::debugBuffer( uint8_t* buffer, int buflen) const
 {
     int byte, width=16;
-    unsigned short curr_word;
+    uint16_t curr_word;
 
     debugLog << "::: Buffer contents ::: " << endl << hex;
 
@@ -629,7 +629,7 @@ void netbase::debugBuffer( unsigned char* buffer, int buflen) const
 }
 
 //New packet object, pointing at the data in our big ring buffer
-netpacket *netbase::makePacket( int con, unsigned char *buffer, short len)
+netpacket *netbase::makePacket( int con, uint8_t *buffer, int16_t len)
 {
     netpacket *result = new netpacket( len, buffer, 0 );
     result->ID = con;
@@ -763,8 +763,8 @@ size_t netbase::debugPacket(const netpacket *pkt) const
     size_t length = (position == 0 ? size : position);
     
     debugLog << "Length=" << length << " ID=" << pkt->ID << " String=";
-    const unsigned char *mybytes = pkt->get_ptr();
-    unsigned char mybyte;
+    const uint8_t *mybytes = pkt->get_ptr();
+    uint8_t mybyte;
     char hexvalue[8];
     
     for (size_t index= 0; index < length; index++) {

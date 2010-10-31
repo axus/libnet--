@@ -41,7 +41,7 @@ netserver::~netserver()
 
 
 //Open a socket, bind, and listen on specified port
-int netserver::openPort(short port) {
+int netserver::openPort(int16_t port) {
 	int	sd;	 // socket descriptors
 	struct	sockaddr_in sad; // structure to hold server's address
 	int rv;    //Return value
@@ -245,7 +245,7 @@ int netserver::acceptConnection()
     conSet.insert( connection );
     
     //Allocate buffer for receiving packets
-    conBuffer[connection] = new unsigned char[NETMM_CON_BUFFER_SIZE];
+    conBuffer[connection] = new uint8_t[NETMM_CON_BUFFER_SIZE];
     conBufferIndex[connection] = 0;
     conBufferLength[connection] = 0;
     conBufferSize[connection] = NETMM_CON_BUFFER_SIZE;

@@ -89,10 +89,10 @@ protected:
     unsigned int conMax;    //Max connections allowed
     
     //Use a buffer for all incoming packets
-    //unsigned char *myBuffer;
+    //uint8_t *myBuffer;
     
     //Each connection gets its own buffer
-    unsigned char* conBuffer[NETMM_MAX_SOCKET_DESCRIPTOR];
+    uint8_t* conBuffer[NETMM_MAX_SOCKET_DESCRIPTOR];
     size_t conBufferIndex[NETMM_MAX_SOCKET_DESCRIPTOR];
     size_t conBufferLength[NETMM_MAX_SOCKET_DESCRIPTOR];
     size_t conBufferSize[NETMM_MAX_SOCKET_DESCRIPTOR];
@@ -131,7 +131,7 @@ protected:
     int readSockets();
     
     //Receive data on a socket to a buffer
-    int recvSocket(int sd, unsigned char* buffer);
+    int recvSocket(int sd, uint8_t* buffer);
     
     //Closes socket, sets it to INVALID_SOCKET
     virtual int closeSocket(int sd);
@@ -144,10 +144,10 @@ protected:
 
     //Create netpacket from buffer
     //We must delete it when finished!!
-    netpacket* makePacket( int ID, unsigned char* buffer, short len);
+    netpacket* makePacket( int ID, uint8_t* buffer, int16_t len);
     
     //Debugging helpers
-    void debugBuffer( unsigned char* buffer, int buflen) const;
+    void debugBuffer( uint8_t* buffer, int buflen) const;
     std::string getSocketError() const;
 
     //Default incoming packet callback.  Return size of packet.

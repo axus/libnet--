@@ -2,3 +2,4 @@ mk
 *.o
 *.a
 *.exe
+*.log

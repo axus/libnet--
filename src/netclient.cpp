@@ -21,10 +21,6 @@ netclient::~netclient()
 {
     openLog();
     debugLog << "===Ending client===" << endl << endl;
-/*
-    if (sdServer != (int)INVALID_SOCKET)
-        closeSocket(sdServer);
-*/
     closeLog();
 
     //Now the base class destructor is invoked by C++
@@ -52,15 +48,6 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
 
     openLog();
 
-/*
-    //Make sure we aren't already connected !!!  Client only allows one connection
-    if (ready) {
-        debugLog << "Already connected on socket " << sdServer << endl;
-        lastError = "Already connected";
-        return -1;
-    }
-*/
-
     //Create a socket
     sdServer = socket( AF_INET, SOCK_STREAM, 0);
     if ( sdServer == (int)INVALID_SOCKET ) {
@@ -76,7 +63,7 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
     //Load connection information
 	memset((char *)&sad,0,sizeof(sad));    // clear sockaddr structure
 	sad.sin_family = AF_INET;	          //set family to Internet
-	sad.sin_port = htons(port);            //Set port (network short format)
+	sad.sin_port = htons(port);            //Set port (network int16_t format)
 	sad.sin_addr.s_addr = inet_addr(serverAddress.c_str()); //Convert the server address
 
 
@@ -132,7 +119,7 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
         buildSocketSet();
         
         //Allocate buffer for receiving packets
-        conBuffer[sdServer] = new unsigned char[NETMM_CON_BUFFER_SIZE];
+        conBuffer[sdServer] = new uint8_t[NETMM_CON_BUFFER_SIZE];
         conBufferIndex[sdServer] = 0;
         conBufferLength[sdServer] = 0;
         conBufferSize[sdServer] = NETMM_CON_BUFFER_SIZE;
@@ -146,54 +133,6 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
 
     return 0;       //Still connecting!!  Try back later...
 }
-
-/*
-//Inherited function for closing a network socket
-int netclient::closeSocket( int sd)
-{
-    int rv;
-
-    //Special case if server port was shut down
-    if (sd == sdServer)
-        ready = false;
-
-    //Do normal base class closing
-    rv = netbase::closeSocket( sd);
-
-    if (sd == sdServer)
-        sdServer = INVALID_SOCKET;
-
-    return rv;
-}
-
-//Disconnect from the server... May or may not actually be connected
-bool netclient::doDisconnect()
-{
-
-    int result = false;
-    openLog();
-    if (sdServer != (int)INVALID_SOCKET) {
-        
-        //Debug information when closing a connected socket
-        if (ready) {
-            ;   //TODO: optional disconnect packet?
-        }
-
-        debugLog << "Closing socket " << sdServer << endl;
-        closeSocket(sdServer);      //Base class socket close, handles conSet
-        lastError = lastError + string("; Closing socket");
-        result = true;
-    }
-    else {
-        lastError = "Already disconnected";
-        debugLog << "Client already disconnected" << endl;
-    }
-    //ready = false;    
-    closeLog();
-    return result;
-}
-*/
-
 
 //Read the network, handle any incoming data
 int netclient::run()
