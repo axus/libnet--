@@ -94,6 +94,7 @@ size_t send_response( netpacket* pkt, void *cb_data)
 
     //Create packet with response info
     netpacket http_response_pkt( response->length, (unsigned char *)msg);
+    http_response_pkt.ID = connection;
     
     //Send response packet on connection where we received a packet
     result = response->server->sendPacket(connection, http_response_pkt);

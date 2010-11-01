@@ -57,7 +57,7 @@ int netserver::openPort(int16_t port) {
     sd = socket( AF_INET, SOCK_STREAM, 0);
     if ( sd == (int)INVALID_SOCKET )
     {
-        debugLog << "Socket error: " << getSocketError() << endl;
+        debugLog << "#" << sd << " socket error: " << getSocketError() << endl;
         return -1;
     }
 
@@ -71,14 +71,14 @@ int netserver::openPort(int16_t port) {
 
 	rv = bind(sd, (sockaddr*)&sad, sizeof( struct sockaddr_in));
 	if (rv == -1) {
-        debugLog << "Cannot bind, localhost:" << port << endl;
+        debugLog << "#" << sd << " cannot bind localhost:" << port << endl;
         closeSocket(sd);
         return -1;    //Cannot bind socket
     }
 
     rv  = listen(sd, conMax);    //List on port... allow MAX_CON clients
     if (rv == -1) {
-        debugLog << "Cannot listen on port " << port << endl;
+        debugLog << "#" << sd << " cannot listen on " << port << endl;
         closeSocket(sd);
         return -1;    //Cannot listen on port
     }
@@ -93,8 +93,7 @@ int netserver::openPort(int16_t port) {
     serverPort = port;
     ready = true;
 
-    debugLog << "** Listening on port " << port
-                << ", socket " << sd
+    debugLog << "#" << sd << " ** Listening on port " << port
                 << ", limit " << conMax << " clients **" << endl;
 
     return sd;
@@ -105,9 +104,9 @@ void netserver::closePort()
 {
     openLog();
     if (ready)
-        debugLog << "Server closing port " << serverPort << endl << endl;
+        debugLog << "#" << sdListen << " Server port " << serverPort << " closing." << endl << endl;
     else
-        debugLog << "Warning: Closing port, may already be closed!" << endl;
+        debugLog << "#" << sdListen << " Warning: Closing port, may already be closed!" << endl;
 
     ready = false;
     
@@ -140,8 +139,6 @@ int netserver::run()
 {
     int rv=0;
 
-    //debugLog << "Checking network connections...";
-
     try {
     
         //First, look for incoming connections
@@ -151,7 +148,8 @@ int netserver::run()
         if (conSet.size() > 0) {
             rv = readIncomingSockets();
         }
-            
+        
+        //Fire callbacks for unprocessed data
     }
     catch(...) {
         debugLog << "Unhandled exception!!" << endl;
@@ -188,7 +186,6 @@ int netserver::checkPort()
     else if (rv > 0)
     {
         //Something pending on a socket
-        debugLog << "Incoming connection" << endl;
 
         //Check the incoming server socket (dedicated to listening for new connections)
         if (FD_ISSET(sdListen, &listenSet)) {
@@ -199,6 +196,7 @@ int netserver::checkPort()
             }
             else {
                 //Report new connection
+                debugLog << "#" << connection << " CONNECTED!" << endl;
                 conCB( connection, conCBD);
             }
         } else {
@@ -237,9 +235,9 @@ int netserver::acceptConnection()
         debugLog << "Connection refused, maximum " << conMax << " connections" << endl;
         return -1;
     }
-    debugLog << "Client connected: Socket=" << connection
-            << "  Address=" << inet_ntoa( addr.sin_addr )
-            << "  Port=" << ntohs(addr.sin_port) << endl;
+    debugLog << "#" << connection
+            << " connected!  address=" << inet_ntoa( addr.sin_addr )
+            << "  port=" << ntohs(addr.sin_port) << endl;
 
     //Add to the set of connection descriptors
     conSet.insert( connection );

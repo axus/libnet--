@@ -20,6 +20,7 @@
 #include <map>
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 //
 //  Class definition
@@ -84,7 +85,10 @@ protected:
     bool ready;             //Ready to continue?
     
     fd_set sdSet;   //set of all file descriptors
-    std::set<int> conSet;   //set of socket connections which are current connected
+    std::set<int> conSet;   //Currently connected sockets
+    std::set<int> closedSocketSet;   //Sockets which are pending disconnection
+    std::set<int> pendingSet;   //unprocessed data is pending on these sockets
+        
     int sdMax;              //Max socket descriptor in conSet
     unsigned int conMax;    //Max connections allowed
     
@@ -127,8 +131,11 @@ protected:
     //Select on socketSet until incoming packets complete
     int readIncomingSockets();
     
-    //Read set of socket 
-    int readSockets();
+    //Read set of sockets, return list of netpackets
+    std::vector<netpacket*> readSockets();
+    
+    //Fire callbacks for list of packets (and disconnected sockets)
+    int fireCallbacks(std::vector<netpacket*>& packets);
     
     //Receive data on a socket to a buffer
     int recvSocket(int sd, uint8_t* buffer);
@@ -137,7 +144,7 @@ protected:
     virtual int closeSocket(int sd);
     
     //Erase socket descriptor from conSet
-    void removeSocket(int sd);
+    int removeSocket(int sd);
     
     //Free buffer associated with connection
     void cleanSocket(int sd);

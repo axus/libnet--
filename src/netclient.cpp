@@ -111,7 +111,7 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
     }
     else if (rv > 0) {
         getsockname( sdServer, (struct sockaddr*)&sad, &namelen);
-        debugLog << "Connected to " << serverAddress << " S#" << sdServer
+        debugLog << "#" << sdServer << " connected @ " << serverAddress << ":" << port
         << " from " << inet_ntoa(sad.sin_addr) << ":" << ntohs(sad.sin_port) << endl;
 
         //Add to sdSet
@@ -144,12 +144,14 @@ int netclient::run()
         if (conSet.size() > 0) {
             rv = readIncomingSockets();
         }
+        
+        //Fire callbacks for unprocessed data
     }
     catch(...) {
         debugLog << "Unhandled exception!!" << endl;
         rv = -1;
     };
-    debugLog << "run..." << std::flush;
+    debugLog << "." << std::flush;
 
     return rv;
 }

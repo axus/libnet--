@@ -58,6 +58,7 @@ int main (int argc, char *argv[])
         cout << "Connection error: " << Client.lastError << endl;
         return 1;
     }
+    http_get_pkt.ID = connection;
 
     //Set connection callback
     Client.setConPktCB( connection, print_pkt, NULL);
