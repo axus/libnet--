@@ -160,7 +160,7 @@ bool netbase::isClosed(int sd) const {
 int netbase::sendPacket( int sd, netpacket &msg) {
 
     int rv;
-    const int16_t length = msg.get_position();
+    const int16_t length = msg.get_write();
 
     //Check if connection number exists in conSet
     if ( conSet.find( sd ) == conSet.end() ) {
@@ -168,6 +168,7 @@ int netbase::sendPacket( int sd, netpacket &msg) {
         return -1;
     }
 
+    debugPacket( &msg);
     //Trying to send on socket. TODO: repeat while (rv > 0 && totalSent < length)
     rv = send(sd, (const char*)msg.get_ptr(), length, /*flags*/0);
 
@@ -178,7 +179,7 @@ int netbase::sendPacket( int sd, netpacket &msg) {
     }
     
     //Record the message information, how much was sent
-    debugLog    << "Sent, rv=" << rv << "/" << length << " bytes #" << sd << endl;
+    debugLog    << "Sent " << rv << "/" << length << " bytes #" << sd << endl;
                 
     if (rv == 0) {
         debugLog << "Warning: Message not sent" << endl;
@@ -409,8 +410,8 @@ int netbase::readSockets()
                 //Keep track of buffer offsets
                 conBufferLength[con] += rv;
                 
-                //Packet points at entire unconsumed buffer space
-                netpacket *pkt = makePacket( con, (myBuffer + conBufferIndex[con]), conBufferLength[con]);
+                //Packet points at unconsumed buffer space
+                netpacket *pkt = makePacket( con, myBuffer + conBufferIndex[con], conBufferLength[con] - conBufferIndex[con]);
                 
                 //Set connection ID for packet
                 pkt->ID = con;
@@ -458,6 +459,7 @@ int netbase::readSockets()
             callback = cb_iter->second;
             
             
+            /*
             //Keep running callback until no more bytes are read(?)
             do {
                 debugPacket(pkt);
@@ -465,11 +467,12 @@ int netbase::readSockets()
                 conBufferIndex[con] += bytes_read;
                 pkt->setp( conBufferIndex[con]);
             } while (bytes_read > 0 && conBufferIndex[con] < conBufferLength[con]);
-            /*
-                //TODO: repeat callback when run() is called.
-                bytes_read = callback( pkt, cbData);
-                conBufferIndex[con] += bytes_read;
             */
+            
+            //TODO: repeat callback when run() is called.
+            bytes_read = callback( pkt, cbData);
+            conBufferIndex[con] += bytes_read;
+            
             //Reset buffer if all data has been consumed
             if (conBufferIndex[con] == conBufferLength[con]) {
                 conBufferIndex[con] = 0;
@@ -768,27 +771,45 @@ size_t netbase::debugPacket(const netpacket *pkt) const
         return 0;
     }
     
-    //Useful size depends if the packet is being sent, or received
-    size_t position = pkt->get_position();
+    //Get index values
+    size_t read = pkt->get_read();
+    size_t written = pkt->get_write();
     size_t size = pkt->get_maxsize();
-    size_t length = size - position;
-    
-    debugLog << "Length=" << length << " ID=" << pkt->ID << " String=";
-    const uint8_t *mybytes = (pkt->get_ptr() + position);
+    debugLog << "PKT #" << pkt->ID << " (w=" << written << "," << "r=" << read << "/" << size << ")" << endl;
+
+    const uint8_t *mybytes = pkt->get_ptr();
     uint8_t mybyte;
     char hexvalue[8];
-    
-    for (size_t index= 0; index < length; index++) {
-        mybyte = mybytes[index];
-        if (mybyte >= ' ' && mybyte <= '~') {
-            debugLog << (char)mybyte;
-        } else {
-            sprintf( hexvalue, "{0x%02X}", mybyte);
-            debugLog << hexvalue;
+
+    //Print the written bytes    
+    if (written > 0) {
+        debugLog << "Written=";
+        //Vars
+        
+        for (size_t index=0; index < written; index++) {
+            mybyte = mybytes[index];
+            if (mybyte >= ' ' && mybyte <= '~') {
+                debugLog << (char)mybyte;
+            } else {
+                sprintf( hexvalue, "{0x%02X}", mybyte);
+                debugLog << hexvalue;
+            }
         }
+        debugLog << endl;
+    } else if (read < size) {
+        debugLog << "Unread=";
+        //Print the unread bytes
+        for (size_t index=read; index < size; index++) {
+            mybyte = mybytes[index];
+            if (mybyte >= ' ' && mybyte <= '~') {
+                debugLog << (char)mybyte;
+            } else {
+                sprintf( hexvalue, "{0x%02X}", mybyte);
+                debugLog << hexvalue;
+            }
+        }
+        debugLog << endl;
     }
-    
-    debugLog << endl;
     
     //Did not consume any bytes :)
     return 0;

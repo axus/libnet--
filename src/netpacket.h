@@ -10,7 +10,8 @@
 //Class for generic byte array to be sent
 class netpacket {
     protected:
-        size_t maxsize, position;
+        size_t maxsize, pos_read, pos_write;
+
         uint8_t* data;
         bool delete_data;
     public:
@@ -18,24 +19,24 @@ class netpacket {
         
         typedef size_t (*netPktCB)( netpacket* pkt, void *cb_data); //message processing callback type
 
-	   //Default packet allocates 1024 bytes, 0 position.  append() more to increase position.
+	   //Allocates 1024 bytes, ready to read or write.
         netpacket( ):
-                maxsize(DEFAULT_PACKET_SIZE), position(0), data(NULL), delete_data(true), ID(0)
+                maxsize(DEFAULT_PACKET_SIZE), pos_read(0), pos_write(0), data(NULL), delete_data(true), ID(0)
                     { data = new uint8_t[DEFAULT_PACKET_SIZE];};
                     
-        //Packet allocates *size* bytes, 0 position.  append() more to increase position.
+        //Allocates *size* bytes, ready to read or write.
         netpacket( size_t size):
-                maxsize(size), position(0), data(0), delete_data(true), ID(0)
+                maxsize(size), pos_read(0), pos_write(0), data(0), delete_data(true), ID(0)
                     { data = new uint8_t[size];};
 
-        //Packet points to pre-made buffer, position == maxsize.  Only good for sending or copying.
+        //Point to pre-made buffer, ready to read.  read-only!
         netpacket( size_t size, uint8_t* buf):
-                maxsize(size), position(size), data(buf), delete_data(false), ID(0)
+                maxsize(size), pos_read(0), pos_write(size), data(buf), delete_data(false), ID(0)
                     {;};
         
-        //Packet points to pre-made buffer, position == ptr.  You can append up to maxsize.
-        netpacket( size_t size, uint8_t* buf, size_t ptr):
-                maxsize(size), position(ptr), data(buf), delete_data(false), ID(0)
+        //Points to pre-made buffer, ready to read.  Writing starts at write_index.
+        netpacket( size_t size, uint8_t* buf, size_t write_index):
+                maxsize(size), pos_read(0), pos_write(write_index), data(buf), delete_data(false), ID(0)
                     {;};
         
     //Destructors
@@ -44,7 +45,8 @@ class netpacket {
     //Info
         size_t ID;   //Unique identifier for this packet... if you bother to set it!
         
-        size_t get_position() const { return position; }; //Return used byte count
+        size_t get_write() const { return pos_write; }; //Return bytes written to packet
+        size_t get_read() const { return pos_read; }; //Return bytes read from packet
         size_t get_maxsize() const { return maxsize; }; //Return max byte count
         const uint8_t* get_ptr() const { return data; }; //Return pointer to entire packet data
     
@@ -81,7 +83,8 @@ class netpacket {
         size_t append (const uint8_t *val, size_t size); //byte array
 
     //Reset position (to reuse the packet without resizing)
-        void setp( size_t p=0);
+        void set_read( size_t p=0);
+        void set_write( size_t p=0);
 };
 
 
