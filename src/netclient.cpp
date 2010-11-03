@@ -124,9 +124,10 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
         conBufferLength[sdServer] = 0;
         conBufferSize[sdServer] = NETMM_CON_BUFFER_SIZE;
 
-        //This is not needed since there is only one connection!!
-        if (sdMax < sdServer)
+        //Increase sdMax if higher connection is made
+        if (sdMax < sdServer) {
             sdMax = sdServer;
+        }
 
         return sdServer;
     }

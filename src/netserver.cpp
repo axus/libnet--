@@ -220,8 +220,9 @@ int netserver::acceptConnection()
     if (connection == (int)INVALID_SOCKET) {
         debugLog << "Client connection failed:" << getSocketError() << endl;
 
-        if (sdListen != (int)INVALID_SOCKET)
+        if (sdListen != (int)INVALID_SOCKET) {
             closeSocket(sdListen);  //Cleanup the listen port
+        }
         
         //Don't give up, try to restart it
         if (openPort(serverPort) == (int)INVALID_SOCKET)
