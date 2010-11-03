@@ -151,7 +151,7 @@ protected:
 
     //Create netpacket from buffer
     //We must delete it when finished!!
-    netpacket* makePacket( int ID, uint8_t* buffer, size_t write_pos);
+    netpacket* makePacket( int ID, uint8_t* buffer, size_t pkt_size);
     
     //Debugging helpers
     void debugBuffer( uint8_t* buffer, size_t buflen) const;

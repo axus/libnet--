@@ -288,8 +288,12 @@ int netbase::removeSocket(int sd) {
     }
 
     //Close the socket
-    debugLog << "#" << sd << " Closing" << endl;
+    debugLog << "#" << sd << " removeSocket" << endl;
+#ifdef _WIN32
     int rv = closesocket(sd);
+#else
+    int rv = close(sd);
+#endif
     if (rv == SOCKET_ERROR) {
         debugLog << "#" << sd << " Error closing socket: " << getSocketError() << endl;
     }    
@@ -308,6 +312,8 @@ int netbase::removeSocket(int sd) {
 
 //Clean up data associated with socket
 void netbase::cleanSocket(int sd) {
+
+    debugLog << "#" << sd << " cleanSocket" << endl;
 
     //Free the buffer allocated for this socket
     if (conBuffer[sd] != NULL) {
@@ -329,11 +335,14 @@ bool netbase::disconnect( int con) {
 
     bool result=false;
     
-    if (con != (int)(INVALID_SOCKET)) {
+    //If it's not an invalid socket and not closed already
+    if (con != (int)(INVALID_SOCKET) && conSet.count(con) != 0) {
         result = (closeSocket(con) != SOCKET_ERROR);
         char socketNum[8];
         sprintf(socketNum, "%d", con);
         lastError = lastError + string("; Closing socket #") + socketNum;
+    } else {
+        debugLog << "#" << con << " was already disconnected" << endl;
     }
     
     return result;
@@ -467,38 +476,38 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
         //Run connection specific callback, if exists
         if ( cb_iter != packetCB_map.end()) {
             callback = cb_iter->second;
-            
-            
-            
+
             //Keep running callback until no more bytes are read(?)
             do {
-                //debugPacket(pkt);
                 bytes_read = callback( pkt, cbData);
                 conBufferIndex[con] += bytes_read;
                 
                 debugLog << "#" << con << " bytes_read=" << bytes_read
-                    << " index=" << conBufferIndex[con] << " length=" << conBufferLength[con] << endl;
+                    << " index=" << conBufferIndex[con] << " length="
+                    << conBufferLength[con] << endl;
                 
                 //Reset buffer if all data has been consumed
                 if (conBufferIndex[con] == conBufferLength[con]) {
                     conBufferIndex[con] = 0;
                     conBufferLength[con] = 0;
+                } else if (conBufferLength[con] < conBufferIndex[con]) {
+                    //Index should never go past length.
+                    debugLog << "#" << con << " ERROR! Read past end of packet "
+                        << conBufferIndex[con] << "/" << conBufferLength[con] << endl;
+                    cerr << "ERROR!: Read past end of packet." << endl;
+                    
+                    //Set index back to max length and quit
+                    conBufferIndex[con] = conBufferLength[con];
                 } else if (bytes_read > 0) {
                     //Make a new packet, run the callback again
                     delete pkt;
-                    //pkt = new netpacket(conBufferLength[con] - conBufferIndex[con], conBuffer[con] + conBufferIndex[con]);
-                    pkt = makePacket(con, conBuffer[con] + conBufferIndex[con], conBufferLength[con] - conBufferIndex[con]);
+                    pkt = makePacket(con,
+                        conBuffer[con] + conBufferIndex[con],
+                        conBufferLength[con] - conBufferIndex[con]);
                     pkt->ID = con;
                     *pkt_iter = pkt;
                 }
-            } while (bytes_read > 0 && conBufferIndex[con] < conBufferLength[con]);
-            
-            /*
-            //TODO: repeat callback when run() is called.
-            bytes_read = callback( pkt, cbData);
-            conBufferIndex[con] += bytes_read;
-            */
-            
+            } while (bytes_read > 0 && conBufferIndex[con] < conBufferLength[con]);            
         }
     }
 
@@ -512,7 +521,7 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
         //Disconnection callback
         disCB( con, disCBD);
         
-        //Clean up the socket associated data
+        //Clean up the socket associated data (if removeSocket was called)
         cleanSocket(con);
     }
 
@@ -554,7 +563,6 @@ int netbase::recvSocket(int sd, uint8_t* buffer)
         #ifdef _WIN32
         if (WSAGetLastError() == WSAECONNRESET) {
             debugLog << "#" << sd << " reset" << endl;
-            //closeSocket(sd);
             removeSocket(sd);
             return 0;
         }
@@ -562,7 +570,6 @@ int netbase::recvSocket(int sd, uint8_t* buffer)
         
         if (rv == SOCKET_ERROR) {
             debugLog << "#" << sd << " recv Error: " << getSocketError() << endl;
-            //closeSocket(sd);
             removeSocket(sd);
             return -1;
         }
@@ -668,9 +675,9 @@ void netbase::debugBuffer( uint8_t* buffer, size_t buflen) const
 }
 
 //New packet object, pointing at the data in a connectin-specific buffer
-netpacket *netbase::makePacket( int con, uint8_t *buffer, size_t write_index)
+netpacket *netbase::makePacket( int con, uint8_t *buffer, size_t pkt_size)
 {
-    netpacket *result = new netpacket( write_index, buffer, 0 );
+    netpacket *result = new netpacket( pkt_size, buffer, 0 );
     result->ID = con;
     debugPacket(result);
     
