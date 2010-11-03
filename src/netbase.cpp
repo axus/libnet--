@@ -118,7 +118,7 @@ bool netbase::unsetConPktCB( int c)
     return result;
 }
 
-//Set callback for what to do when new connection is created
+//Set callback for what to do when new connection arrives
 void netbase::setConnectCB( connectionFP cbFunc, void *cbData)
 {
     conCB = cbFunc;
@@ -314,6 +314,9 @@ int netbase::removeSocket(int sd) {
 void netbase::cleanSocket(int sd) {
 
     debugLog << "#" << sd << " cleanSocket" << endl;
+
+    //Remove the callbacks associated with this socket
+    unsetConPktCB(sd);
 
     //Free the buffer allocated for this socket
     if (conBuffer[sd] != NULL) {
