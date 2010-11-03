@@ -151,10 +151,10 @@ protected:
 
     //Create netpacket from buffer
     //We must delete it when finished!!
-    netpacket* makePacket( int ID, uint8_t* buffer, int16_t len);
+    netpacket* makePacket( int ID, uint8_t* buffer, size_t write_pos);
     
     //Debugging helpers
-    void debugBuffer( uint8_t* buffer, int buflen) const;
+    void debugBuffer( uint8_t* buffer, size_t buflen) const;
     std::string getSocketError() const;
 
     //Default incoming packet callback.  Return size of packet.

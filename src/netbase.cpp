@@ -11,6 +11,7 @@ using std::pair;
 using std::ofstream;
 using std::string;
 using std::vector;
+using std::set;
 
 using std::cerr;
 using std::endl;
@@ -159,7 +160,7 @@ bool netbase::isClosed(int sd) const {
 int netbase::sendPacket( int sd, netpacket &msg) {
 
     int rv;
-    const int16_t length = msg.get_write();
+    const size_t length = msg.get_write();
 
     //Check if connection number exists in conSet
     if ( conSet.find( sd ) == conSet.end() ) {
@@ -184,7 +185,7 @@ int netbase::sendPacket( int sd, netpacket &msg) {
         debugLog << "Warning: Message not sent" << endl;
         return 0;
     }
-    if (rv < length ) {
+    if ((size_t)rv < length ) {
         //TODO: send the rest of the message
         debugLog << "Warning: Send incomplete" << endl;
     }
@@ -313,6 +314,8 @@ void netbase::cleanSocket(int sd) {
         delete conBuffer[sd];
         conBuffer[sd] = NULL;
     }
+    
+    //Remove this socket from the set of sockets to be closed
     closedSocketSet.erase(sd);
 
     //Reset index/length/size pointers
@@ -433,7 +436,6 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
     map< int, void* >::const_iterator cbd_iter;
     netpacket::netPktCB callback;
     void *cbData;
-    std::set<int>::const_iterator con_iter;
 
     size_t bytes_read;
     int con;
@@ -501,16 +503,17 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
     }
 
     //Handle disconnected sockets (this can happen immediately after receiving bytes)
-    for (con_iter = closedSocketSet.begin(); con_iter != closedSocketSet.end(); con_iter++) {
+    set<int>::const_iterator con_iter;
+    set<int> closedSocketCopy( closedSocketSet );
+    for (con_iter = closedSocketCopy.begin(); con_iter != closedSocketCopy.end(); con_iter++) {
 
         con = *con_iter;
-    
+
         //Disconnection callback
         disCB( con, disCBD);
-            
+        
         //Clean up the socket associated data
         cleanSocket(con);
-
     }
 
 
@@ -636,9 +639,10 @@ size_t netbase::disconnectionCB( int con, void *CBD) {
 
 
 //Output the contents of a buffer to the log
-void netbase::debugBuffer( uint8_t* buffer, int buflen) const
+void netbase::debugBuffer( uint8_t* buffer, size_t buflen) const
 {
-    int byte, width=16;
+    //int byte, width=16;
+    size_t byte, width=16;
     uint16_t curr_word;
 
     debugLog << "::: Buffer contents ::: " << endl << hex;
@@ -646,7 +650,7 @@ void netbase::debugBuffer( uint8_t* buffer, int buflen) const
     //Dump the buffer contents
     for (byte = 0; byte < buflen - 1; byte += 2) {
 
-        memcpy( &curr_word, &(buffer[byte]), 2);
+        memcpy( &curr_word, (buffer + byte), sizeof(curr_word));
         debugLog << "0x" << setfill('0') << setw(4) << curr_word;
 
         if ((byte % width ) == (width - 2))
@@ -664,9 +668,9 @@ void netbase::debugBuffer( uint8_t* buffer, int buflen) const
 }
 
 //New packet object, pointing at the data in a connectin-specific buffer
-netpacket *netbase::makePacket( int con, uint8_t *buffer, int16_t len)
+netpacket *netbase::makePacket( int con, uint8_t *buffer, size_t write_index)
 {
-    netpacket *result = new netpacket( len, buffer, 0 );
+    netpacket *result = new netpacket( write_index, buffer, 0 );
     result->ID = con;
     debugPacket(result);
     
@@ -820,7 +824,7 @@ size_t netbase::debugPacket(const netpacket *pkt) const
     } else if (read < size) {
         debugLog << "     Unread=";
         //Print the unread bytes
-        for (size_t index=read; index < size; index++) {
+        for (size_t index=read; index < (size - read); index++) {
             mybyte = mybytes[index];
             if (mybyte >= ' ' && mybyte <= '~') {
                 debugLog << (char)mybyte;
