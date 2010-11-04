@@ -46,8 +46,9 @@ template <class T> size_t netpacket::read( T& val)
     return pos_read;
 }
 
+
 //Read Generic class array into val. 
-template <class T> size_t netpacket::read ( const T *val_array, size_t size)
+template <class T> size_t netpacket::read ( T* val_array, size_t size)
 {
     //Hates NULLs
     if (val_array == NULL)
@@ -74,6 +75,14 @@ size_t netpacket::read(bool &val)
 
 //8 bit integer
 size_t netpacket::read(uint8_t &val)
+{
+    val = data[pos_read++];
+    
+    return pos_read;
+}
+
+//8 bit signed byte
+size_t netpacket::read(int8_t &val)
 {
     val = data[pos_read++];
     
@@ -156,6 +165,15 @@ size_t netpacket::read(uint8_t *val, size_t size)
 {
     memcpy( val, data + pos_read, size);
     pos_read += size;
+
+    return pos_read;
+}
+
+//short array
+size_t netpacket::read (uint16_t *val, size_t count)
+{
+    memcpy( val, data + pos_read, count*sizeof(uint16_t));
+    pos_read += count*sizeof(uint16_t);
 
     return pos_read;
 }
