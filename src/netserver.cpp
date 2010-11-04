@@ -20,7 +20,8 @@ using std::setw;
 
 
 //Constructor, specify the maximum client connections
-netserver::netserver(unsigned int max): netbase( max), serverPort(-1), sdListen(INVALID_SOCKET)
+netserver::netserver(unsigned int max): netbase( max), ready(false),
+    serverPort(-1), sdListen(INVALID_SOCKET)
 {
     //Everything else should have been taken care of by the netbase constructor
     openLog();
@@ -31,7 +32,7 @@ netserver::netserver(unsigned int max): netbase( max), serverPort(-1), sdListen(
 //Destructor... was virtual
 netserver::~netserver()
 {
-    if ( (sdListen != (int)INVALID_SOCKET) || ready)
+    if ( (sdListen != (sock_t)INVALID_SOCKET) || ready)
         closePort();
     openLog();
     debugLog << "===Ending server===" << endl << endl;
@@ -41,9 +42,9 @@ netserver::~netserver()
 
 
 //Open a socket, bind, and listen on specified port
-int netserver::openPort(int16_t port) {
-	int	sd;	 // socket descriptors
-	struct	sockaddr_in sad; // structure to hold server's address
+sock_t netserver::openPort(int16_t port) {
+	sock_t sd;	 // socket descriptors
+	struct sockaddr_in sad; // structure to hold server's address
 	int rv;    //Return value
 
     if (ready)
@@ -55,7 +56,7 @@ int netserver::openPort(int16_t port) {
 
     //Get a socket
     sd = socket( AF_INET, SOCK_STREAM, 0);
-    if ( sd == (int)INVALID_SOCKET )
+    if ( sd == (sock_t)INVALID_SOCKET )
     {
         debugLog << "#" << sd << " socket error: " << getSocketError() << endl;
         return -1;
@@ -111,16 +112,16 @@ void netserver::closePort()
     ready = false;
     
     //Close the socket.  ready MUST be set to FALSE or there will be a loop
-    if (sdListen != (int)INVALID_SOCKET)
+    if (sdListen != (sock_t)INVALID_SOCKET)
         closeSocket( sdListen);
-    sdListen = (int)INVALID_SOCKET;
+    sdListen = (sock_t)INVALID_SOCKET;
     
     closeLog();
     
 }
 
 //Inherited function for closing a network socket
-int netserver::closeSocket( int sd)
+int netserver::closeSocket( sock_t sd)
 {
     int rv;
 
@@ -128,9 +129,9 @@ int netserver::closeSocket( int sd)
     rv = netbase::closeSocket( sd);
 
     //Special test case for listening port
-    if (sd == sdListen)
-        sdListen = (int)INVALID_SOCKET;
-
+    if (sd == sdListen) {
+        sdListen = (sock_t)INVALID_SOCKET;
+    }
     return rv;
 }
 
@@ -171,7 +172,7 @@ int netserver::buildListenSet()
 //Check sdListen for new incoming connections
 int netserver::checkPort()
 {
-    int connection=0, rv;
+    sock_t sd=0, rv;
 
     //Rebuild the server socket set
     buildListenSet();
@@ -189,15 +190,15 @@ int netserver::checkPort()
 
         //Check the incoming server socket (dedicated to listening for new connections)
         if (FD_ISSET(sdListen, &listenSet)) {
-            connection = acceptConnection();
+            sd = acceptConnection();
             
-            if (connection < 0) {
+            if (sd == (sock_t)INVALID_SOCKET) {
                 //Connection refused or failed
             }
             else {
                 //Report new connection
-                debugLog << "#" << connection << " CONNECTED!" << endl;
-                conCB( connection, conCBD);
+                debugLog << "#" << sd << " CONNECTED!" << endl;
+                conCB( sd, conCBD);
             }
         } else {
           ;//Existing connection has something to say
@@ -208,24 +209,24 @@ int netserver::checkPort()
 }
 
 //Accept new connection, add connection descriptor to conSet
-int netserver::acceptConnection()
+sock_t netserver::acceptConnection()
 {
-    int connection;
+    sock_t sd;
     struct sockaddr_in addr;
     int addr_len = sizeof(struct sockaddr_in);
 
     openLog();
 
-    connection = accept(sdListen, (sockaddr*)&addr, &addr_len);        //Non blocking accept call
-    if (connection == (int)INVALID_SOCKET) {
+    sd = accept(sdListen, (sockaddr*)&addr, &addr_len);        //Non blocking accept call
+    if (sd == (sock_t)INVALID_SOCKET) {
         debugLog << "Client connection failed:" << getSocketError() << endl;
 
-        if (sdListen != (int)INVALID_SOCKET) {
+        if (sdListen != (sock_t)INVALID_SOCKET) {
             closeSocket(sdListen);  //Cleanup the listen port
         }
         
         //Don't give up, try to restart it
-        if (openPort(serverPort) == (int)INVALID_SOCKET)
+        if (openPort(serverPort) == (sock_t)INVALID_SOCKET)
             debugLog << "Cannot restart socket!" << endl;
         else
             debugLog << "Listening socket restarted" << endl;
@@ -236,21 +237,21 @@ int netserver::acceptConnection()
         debugLog << "Connection refused, maximum " << conMax << " connections" << endl;
         return -1;
     }
-    debugLog << "#" << connection
+    debugLog << "#" << sd
             << " connected!  address=" << inet_ntoa( addr.sin_addr )
             << "  port=" << ntohs(addr.sin_port) << endl;
 
     //Add to the set of connection descriptors
-    conSet.insert( connection );
+    conSet.insert( sd );
     
     //Allocate buffer for receiving packets
-    conBuffer[connection] = new uint8_t[NETMM_CON_BUFFER_SIZE];
-    conBufferIndex[connection] = 0;
-    conBufferLength[connection] = 0;
-    conBufferSize[connection] = NETMM_CON_BUFFER_SIZE;
+    conBuffer[sd] = new uint8_t[NETMM_CON_BUFFER_SIZE];
+    conBufferIndex[sd] = 0;
+    conBufferLength[sd] = 0;
+    conBufferSize[sd] = NETMM_CON_BUFFER_SIZE;
 
     //unblockSocket( connection );
     //Do something with FD_SET ???
 
-    return connection;
+    return sd;
 }

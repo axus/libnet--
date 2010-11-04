@@ -22,19 +22,20 @@ class netserver : public netbase {
 public:
     netserver(unsigned int max);
     ~netserver();
-    int openPort(int16_t port);   //open *port*, return socket descriptor
+    sock_t openPort(int16_t port);   //open *port*, return socket descriptor
     void closePort();        //close the server (and server.log)
     int run();         //Check the network: read sockets, handle callbacks
 
 protected:
+    bool ready;             //Ready to continue?
     fd_set listenSet;   //set of port listening file descriptors
     int16_t serverPort;   //Listening port number
-    int sdListen;       //Listening socket number
+    sock_t sdListen;       //Listening socket number
     
-    int closeSocket(int);   //Overloaded function....
+    int closeSocket(sock_t);   //Overloaded function....
     int buildListenSet();   //Rebuild listenSet
     int checkPort();        //Examine port for connections
-    int acceptConnection(); //Handle an incoming connection
+    sock_t acceptConnection(); //Handle an incoming connection
     
 };
 

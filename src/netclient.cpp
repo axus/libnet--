@@ -7,7 +7,7 @@ using std::endl;
 //  netclient function implementations
 //
 
-netclient::netclient( unsigned int maxConns ) : netbase( maxConns) /*, sdServer((int)INVALID_SOCKET)*/
+netclient::netclient( size_t max ) : netbase( max) //Set maximum connections
 {
     openLog();
     debugLog << "===Starting client===" << endl;
@@ -37,20 +37,19 @@ bool netclient::setConnTimeout( int seconds, int microsec)
 }
 
 
-//connect to server "address:port"
-int netclient::doConnect(const string& serverAddress, int port, int lport)
+//connect to server "address:port", return socket number
+sock_t netclient::doConnect(const string& serverAddress, uint16_t port, uint16_t lport)
 {
 	struct	sockaddr_in sad;   //Server address struct
-	int sdServer;            //socket descriptor of connection
+	sock_t sdServer;            //socket descriptor of connection
 	int rv;                    //Return value
-	int namelen = sizeof( struct sockaddr_in);
     struct hostent *host;       //Host name entry
 
     openLog();
 
     //Create a socket
     sdServer = socket( AF_INET, SOCK_STREAM, 0);
-    if ( sdServer == (int)INVALID_SOCKET ) {
+    if ( sdServer == (sock_t)INVALID_SOCKET ) {
         lastError = "Could not create socket";
         debugLog << lastError << endl;
         return -1;
@@ -110,6 +109,7 @@ int netclient::doConnect(const string& serverAddress, int port, int lport)
         return SOCKET_ERROR;    //Some problem connecting to the server
     }
     else if (rv > 0) {
+        int namelen = sizeof( struct sockaddr_in);  //namelen must be an "int"
         getsockname( sdServer, (struct sockaddr*)&sad, &namelen);
         debugLog << "#" << sdServer << " connected @ " << serverAddress << ":" << port
         << " from " << inet_ntoa(sad.sin_addr) << ":" << ntohs(sad.sin_port) << endl;

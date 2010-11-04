@@ -12,7 +12,7 @@ public:
     ~netclient();
 
     //Open a connection and return connection ID
-    int doConnect( const std::string& address, int remotePort, int localPort = 0);
+    sock_t doConnect( const std::string& address, uint16_t remotePort, uint16_t localPort = 0);
     int run();      //Look for incoming messages
     bool setConnTimeout( int seconds=3, int microsec=0);
 

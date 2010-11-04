@@ -5,7 +5,15 @@
 #define NETPACKET_H
 
 #include <cstdlib>
-#include <stdint.h>
+
+//Compiler specific options
+#ifdef _MSC_VER
+    #include "ms_stdint.h"
+    #define sock_t SOCKET
+#else
+    #include <stdint.h>
+    #define sock_t int
+#endif
 
 //Class for generic byte array to be sent
 class netpacket {
@@ -43,7 +51,7 @@ class netpacket {
         virtual ~netpacket();
 
     //Info
-        size_t ID;   //Unique identifier for this packet... if you bother to set it!
+        sock_t ID;   //Associate packet with socket
         
         size_t get_write() const { return pos_write; }; //Return bytes written to packet
         size_t get_read() const { return pos_read; }; //Return bytes read from packet

@@ -10,10 +10,10 @@ BUILD=build
 # -mconsole: Create a console application
 # -mwindows: Create a GUI application
 # -Wl,--enable-auto-import: Let the ld.exe linker automatically import from libraries
-LDFLAGS= -mconsole -Wl,--enable-auto-import
+LDFLAGS=-mconsole -Wl,--enable-auto-import
 
 #Minimum Windows version: Windows XP, IE 6.01
-CPPFLAGS= -DMINGW -D_WIN32_WINNT=0x0500 -DWINVER=0x0500 -D_WIN32_IE=0x0601 $(MOREFLAGS)
+CPPFLAGS=-D_WIN32_WINNT=0x0500 -DWINVER=0x0500 -D_WIN32_IE=0x0601 $(MOREFLAGS)
 
 #SRC files in SRCDIR directory
 SRC=$(addprefix $(SRCDIR)/, $(SRCFILES))

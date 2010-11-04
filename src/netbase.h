@@ -15,12 +15,16 @@
     #include <sys/select.h>
 #endif
 
-#include <sys/time.h>
+#ifndef _MSC_VER
+    #include <sys/time.h>
+#endif
+
 #include <set>
 #include <map>
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <string>
 
 //
 //  Class definition
@@ -31,23 +35,23 @@ class netbase {
 public:
 
     //Function pointer types
-    typedef size_t (*connectionFP)( int ID, void *cb_data);
+    typedef size_t (*connectionFP)( sock_t sd, void *cb_data);
 
     //Constructors
-    netbase(unsigned int);
+    netbase(size_t);    //Maximum connections
     virtual ~netbase();
 
     //Send packet "pkt" on socket "sd"
-    int sendPacket( int sd, netpacket &pkt);
+    size_t sendPacket( sock_t sd, netpacket &pkt);
 
     //Close socket "sd"
-    bool disconnect( int sd);
+    bool disconnect( sock_t sd);
 
     //Add a callback for incoming packets on matching connection *c*
-    bool setConPktCB( int c, netpacket::netPktCB cbFunc, void *cbData );
+    bool setConPktCB( sock_t sd, netpacket::netPktCB cbFunc, void *cbData );
     
     //Remove callbacks for connection *c*
-    bool unsetConPktCB( int c);
+    bool unsetConPktCB( sock_t c);
 
     //Remove generic and connection-specific incoming packet callbacks
     void unsetAllPktCB();
@@ -62,7 +66,7 @@ public:
     void removeDisconnectCB();
 
     //const functions
-    bool isClosed(int sd) const;   //Is socket closed?
+    bool isClosed(sock_t sd) const;   //Is socket closed?
 
     //Logging functions
     bool openLog() const;     //will open the debugLog, if not open already
@@ -82,18 +86,13 @@ protected:
 
     //Network parameters
     struct timeval timeout; //Timeout interval
-    bool ready;             //Ready to continue?
     
     fd_set sdSet;   //set of all file descriptors
-    std::set<int> conSet;   //Currently connected sockets
-    std::set<int> closedSocketSet;   //Sockets which are pending disconnection
-    std::set<int> pendingSet;   //unprocessed data is pending on these sockets
+    std::set<sock_t> conSet;   //Currently connected sockets
+    std::set<sock_t> closedSocketSet;   //Sockets which are pending disconnection
         
-    int sdMax;              //Max socket descriptor in conSet
-    unsigned int conMax;    //Max connections allowed
-    
-    //Use a buffer for all incoming packets
-    //uint8_t *myBuffer;
+    sock_t sdMax;           //Max socket descriptor in conSet
+    size_t conMax;    //Max connections allowed
     
     //Each connection gets its own buffer
     uint8_t* conBuffer[NETMM_MAX_SOCKET_DESCRIPTOR];
@@ -116,17 +115,17 @@ protected:
     void *disCBD;
 
     //Map connection IDs to callback function/data for incoming packets
-    std::map< int, netpacket::netPktCB > packetCB_map;
-    std::map< int, void* > packetCBD_map;
+    std::map< sock_t, netpacket::netPktCB > packetCB_map;
+    std::map< sock_t, void* > packetCBD_map;
 
     //Map socket descriptor to sequential index, for memory pointing fun.
-    std::map<int, size_t> conIndexMap;
+    std::map<sock_t, size_t> conIndexMap;
 
     //Modify a socket to be non-blocking
-    int unblockSocket(int); 
+    int unblockSocket(sock_t sd); 
     
     //Create the set of sockets
-    int buildSocketSet();
+    size_t buildSocketSet();
     
     //Select on socketSet until incoming packets complete
     int readIncomingSockets();
@@ -138,20 +137,19 @@ protected:
     int fireCallbacks(std::vector<netpacket*>& packets);
     
     //Receive data on a socket to a buffer
-    int recvSocket(int sd, uint8_t* buffer);
+    int recvSocket(sock_t sd, uint8_t* buffer);
     
     //Closes socket, sets it to INVALID_SOCKET
-    virtual int closeSocket(int sd);
+    virtual int closeSocket(sock_t sd);
     
     //Erase socket descriptor from conSet
-    int removeSocket(int sd);
+    int removeSocket(sock_t sd);
     
     //Free buffer associated with connection
-    void cleanSocket(int sd);
+    void cleanSocket(sock_t sd);
 
-    //Create netpacket from buffer
-    //We must delete it when finished!!
-    netpacket* makePacket( int ID, uint8_t* buffer, size_t pkt_size);
+    //Create netpacket from buffer.  **delete it when finished**
+    netpacket* makePacket( sock_t ID, uint8_t* buffer, size_t pkt_size);
     
     //Debugging helpers
     void debugBuffer( uint8_t* buffer, size_t buflen) const;
@@ -161,8 +159,8 @@ protected:
     static size_t incomingCB( netpacket* pkt, void *CBD);
     
     //Default connect/disconnect callbacks.  Return socket descriptor.
-    static size_t connectionCB( int con, void *CBD);
-    static size_t disconnectionCB( int con, void *CBD);
+    static size_t connectionCB( sock_t con, void *CBD);
+    static size_t disconnectionCB( sock_t con, void *CBD);
 };
 
 #endif

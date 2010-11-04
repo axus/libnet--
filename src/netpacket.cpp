@@ -67,7 +67,7 @@ template <class T> size_t netpacket::read ( const T *val_array, size_t size)
 //1 bit integer (uses 8 bits)
 size_t netpacket::read(bool &val)
 {
-    val = (bool)data[pos_read++];
+    val = (data[pos_read++] != 0);
     
     return pos_read;
 }

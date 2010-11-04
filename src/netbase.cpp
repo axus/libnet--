@@ -21,11 +21,18 @@ using std::ios;
 using std::setfill;
 using std::setw;
 
+#ifdef _MSC_VER
+#define snprintf _snprintf_s
+#endif
+
 //Constructor, specify the maximum client connections
-netbase::netbase(unsigned int max): ready(false), sdMax(-1), conMax( max),
-    lastMessage(-1), 
-    conCB(connectionCB), conCBD(this), disCB(disconnectionCB), disCBD(this)
+netbase::netbase(size_t max): sdMax(-1), conMax( max),
+    lastMessage(-1),  conCB(connectionCB), disCB(disconnectionCB)
 {
+
+    //Assign callback data to this object
+    conCBD = this;
+    disCBD = this;
 
     //Set all buffer pointers in map to null
     for (size_t sd = 0; sd < NETMM_MAX_SOCKET_DESCRIPTOR; sd++)
@@ -53,12 +60,12 @@ netbase::netbase(unsigned int max): ready(false), sdMax(-1), conMax( max),
 
 #ifdef _WIN32
 	WSADATA wsaData;
-	int wsaret = WSAStartup(0x0202, &wsaData);
+	int wsaret = WSAStartup(0x0202, &wsaData); //Request Winsock version 2.2
 	if(wsaret!=0) {
         debugLog << "Error starting WSA" << endl;
         return;
     }
-    if (wsaData.wVersion != 0x0202)
+    if (wsaData.wVersion != 0x0202)             //Don't accept lower versions
     { // wrong WinSock version!
         debugLog << "Current winsock version " << hex << wsaData.wVersion << " unsupported" << endl << dec;
         WSACleanup (); // unload ws2_32.dll
@@ -89,22 +96,22 @@ netbase::~netbase()
 }
 
 //Add a callback for incoming packets on matching connection *c*
-bool netbase::setConPktCB( int c, netpacket::netPktCB cbFunc, void* cbData )
+bool netbase::setConPktCB( sock_t c, netpacket::netPktCB cbFunc, void* cbData )
 {
     bool result = true;
 
     //Map c -> cbFunc
-    result = packetCB_map.insert( std::map< int, netpacket::netPktCB >::value_type( c, cbFunc)).second;
+    result = packetCB_map.insert( std::map< sock_t, netpacket::netPktCB >::value_type( c, cbFunc)).second;
     
     //Map c -> cbData
-    result = result && packetCBD_map.insert( std::map< int, void* >::value_type( c, cbData)).second;
+    result = result && packetCBD_map.insert( std::map< sock_t, void* >::value_type( c, cbData)).second;
     
     //Return value: was callback and callback data inserted successfully?
     return result;
 }
 
 //Remove callbacks for connection *c*
-bool netbase::unsetConPktCB( int c)
+bool netbase::unsetConPktCB( sock_t c)
 {
     bool result = true;
     
@@ -152,14 +159,14 @@ void netbase::unsetAllPktCB()
 
 
 //See if socket is still in connection set
-bool netbase::isClosed(int sd) const {
+bool netbase::isClosed(sock_t sd) const {
     return (conSet.count(sd) == 0);
 }
 
 //Send packet on a socket descriptor 'sd'
-int netbase::sendPacket( int sd, netpacket &msg) {
+size_t netbase::sendPacket( sock_t sd, netpacket &msg) {
 
-    int rv;
+    size_t rv;
     const size_t length = msg.get_write();
 
     //Check if connection number exists in conSet
@@ -170,10 +177,10 @@ int netbase::sendPacket( int sd, netpacket &msg) {
 
     debugPacket( &msg);
     //Trying to send on socket. TODO: repeat while (rv > 0 && totalSent < length)
-    rv = send(sd, (const char*)msg.get_ptr(), length, /*flags*/0);
+    rv = send(sd, (const char*)msg.get_ptr(), (int)length, /*flags*/0);
 
     //Return on socket errors
-    if (rv == SOCKET_ERROR) {
+    if (rv == (size_t)SOCKET_ERROR) {
         debugLog << "#" << sd << " Error:" << getSocketError() << endl;
         return -1;
     }
@@ -195,9 +202,9 @@ int netbase::sendPacket( int sd, netpacket &msg) {
 
 
 //Setup a socket to be non-blocking and reusable
-int netbase::unblockSocket(int sd) {
+int netbase::unblockSocket(sock_t sd) {
 
-    if (sd == (int) INVALID_SOCKET) {
+    if (sd == (sock_t) INVALID_SOCKET) {
         debugLog << "Can't unblock an invalid socket" << endl;
         return -1;
     }
@@ -256,9 +263,9 @@ int netbase::unblockSocket(int sd) {
 
 //This creates an FD_SET from the server socket and all current client sockets
 //This must be called before each new "select()" call
-int netbase::buildSocketSet()
+size_t netbase::buildSocketSet()
 {
-    std::set<int>::const_iterator iter;
+    std::set<sock_t>::const_iterator iter;
 
     FD_ZERO( &sdSet );
     for (iter = conSet.begin(); iter != conSet.end(); iter++) {
@@ -271,7 +278,7 @@ int netbase::buildSocketSet()
 
 
 // Close a socket, remove it from the list of connections
-int netbase::closeSocket(int sd)
+int netbase::closeSocket(sock_t sd)
 {
     int rv = removeSocket(sd);
     cleanSocket(sd);
@@ -279,10 +286,10 @@ int netbase::closeSocket(int sd)
     return rv;
 }
 
-int netbase::removeSocket(int sd) {
+int netbase::removeSocket(sock_t sd) {
 
     //Check if socket is already closed
-    if (sd == (int)INVALID_SOCKET) {
+    if (sd == (sock_t)INVALID_SOCKET) {
         debugLog << "Socket already closed" << endl;
         return sd;
     }
@@ -311,7 +318,7 @@ int netbase::removeSocket(int sd) {
 }
 
 //Clean up data associated with socket
-void netbase::cleanSocket(int sd) {
+void netbase::cleanSocket(sock_t sd) {
 
     debugLog << "#" << sd << " cleanSocket" << endl;
 
@@ -334,15 +341,15 @@ void netbase::cleanSocket(int sd) {
 }
 
 //Disconnect specific connection
-bool netbase::disconnect( int con) {
+bool netbase::disconnect( sock_t con) {
 
     bool result=false;
     
     //If it's not an invalid socket and not closed already
-    if (con != (int)(INVALID_SOCKET) && conSet.count(con) != 0) {
+    if (con != (sock_t)(INVALID_SOCKET) && conSet.count(con) != 0) {
         result = (closeSocket(con) != SOCKET_ERROR);
         char socketNum[8];
-        sprintf(socketNum, "%d", con);
+        snprintf(socketNum, 8, "%d", con);
         lastError = lastError + string("; Closing socket #") + socketNum;
     } else {
         debugLog << "#" << con << " was already disconnected" << endl;
@@ -383,11 +390,11 @@ int netbase::readIncomingSockets() {
 vector<netpacket*> netbase::readSockets()
 {
     int rv=0, con=0;
-    std::set<int>::const_iterator con_iter;
+    std::set<sock_t>::const_iterator con_iter;
     vector< netpacket * > packets;
     
     //Copy connection set, as conSet entries may be deleted due to disconnects
-    std::set<int> socketSet = conSet;
+    std::set<sock_t> socketSet = conSet;
 
     //Check all connections in conSet
     for (con_iter = socketSet.begin(); con_iter != socketSet.end(); con_iter++) {
@@ -444,13 +451,13 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
   
     //All pending data has been read, fire incoming data callbacks now
     vector< netpacket * >::iterator pkt_iter;
-    map< int, netpacket::netPktCB >::const_iterator cb_iter;
-    map< int, void* >::const_iterator cbd_iter;
+    map< sock_t, netpacket::netPktCB >::const_iterator cb_iter;
+    map< sock_t, void* >::const_iterator cbd_iter;
     netpacket::netPktCB callback;
     void *cbData;
 
     size_t bytes_read;
-    int con;
+    sock_t con;
     
     //For each packet on the list
     for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter++) {
@@ -515,8 +522,8 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
     }
 
     //Handle disconnected sockets (this can happen immediately after receiving bytes)
-    set<int>::const_iterator con_iter;
-    set<int> closedSocketCopy( closedSocketSet );
+    set<sock_t>::const_iterator con_iter;
+    set<sock_t> closedSocketCopy( closedSocketSet );
     for (con_iter = closedSocketCopy.begin(); con_iter != closedSocketCopy.end(); con_iter++) {
 
         con = *con_iter;
@@ -535,15 +542,15 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
     }
       
     //Return number of packets processed (not total size)
-    return packets.size();
+    return (int)(packets.size());
 }
 
 //Recieve incoming data on a buffer, return the number of bytes read in
 //Check if socket is closed after receiving
-int netbase::recvSocket(int sd, uint8_t* buffer)
+int netbase::recvSocket(sock_t sd, uint8_t* buffer)
 {
     int rv, rs;
-    size_t offset = 0;
+    int offset = 0;
 
     //Create FD_SET that has only this socket
     fd_set sds, sds2;
@@ -621,7 +628,7 @@ size_t netbase::incomingCB( netpacket* pkt, void *CBD) {
 }
 
 //Default new incoming connection callback
-size_t netbase::connectionCB( int con, void *CBD) {
+size_t netbase::connectionCB( sock_t con, void *CBD) {
 
 #ifdef DEBUG
     if ( CBD == NULL) {
@@ -635,7 +642,7 @@ size_t netbase::connectionCB( int con, void *CBD) {
 };
 
 //Default disconnect callback
-size_t netbase::disconnectionCB( int con, void *CBD) {
+size_t netbase::disconnectionCB( sock_t con, void *CBD) {
 #ifdef DEBUG
     if ( CBD == NULL) {
         std::cerr << "Null callback data on disconnectionCB!" << endl;
@@ -671,14 +678,14 @@ void netbase::debugBuffer( uint8_t* buffer, size_t buflen) const
 
     //If it is off a word boundary, dump the last byte
     if (byte == buflen - 1)
-        debugLog << " 0x" << hex << setw(2) << (int)buffer[byte] << dec;
+        debugLog << " 0x" << hex << setw(2) << (uint16_t)buffer[byte] << dec;
 
     if ( (byte % width) > 0)
         debugLog << endl;
 }
 
 //New packet object, pointing at the data in a connectin-specific buffer
-netpacket *netbase::makePacket( int con, uint8_t *buffer, size_t pkt_size)
+netpacket *netbase::makePacket( sock_t con, uint8_t *buffer, size_t pkt_size)
 {
     netpacket *result = new netpacket( pkt_size, buffer, 0 );
     result->ID = con;
@@ -826,7 +833,7 @@ size_t netbase::debugPacket(const netpacket *pkt) const
             if (mybyte >= ' ' && mybyte <= '~') {
                 debugLog << (char)mybyte;
             } else {
-                sprintf( hexvalue, "{0x%02X}", mybyte);
+                snprintf( hexvalue, 8, "{0x%02X}", mybyte);
                 debugLog << hexvalue;
             }
         }
@@ -839,7 +846,7 @@ size_t netbase::debugPacket(const netpacket *pkt) const
             if (mybyte >= ' ' && mybyte <= '~') {
                 debugLog << (char)mybyte;
             } else {
-                sprintf( hexvalue, "{0x%02X}", mybyte);
+                snprintf( hexvalue, 8, "{0x%02X}", mybyte);
                 debugLog << hexvalue;
             }
         }
