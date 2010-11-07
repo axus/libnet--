@@ -152,7 +152,6 @@ int netclient::run()
         debugLog << "Unhandled exception!!" << endl;
         rv = -1;
     };
-    debugLog << "." << std::flush;
 
     return rv;
 }

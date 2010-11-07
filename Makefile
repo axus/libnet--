@@ -5,8 +5,10 @@ SRCFILES    = netpacket.cpp netbase.cpp netclient.cpp netserver.cpp
 HEADERS     = netpacket.h netbase.h netclient.h netserver.h
 INCLUDES    = 
 LOGFILES    = network.log
-###DEBUG       = on
+DEBUG       = on
 
+#Enable this for complete packet dumps.  Consider using Wireshark instead!
+####MOREFLAGS   = -DDEBUG_PACKET
 
 #Build rules for a library in MinGW
 include makefiles/lib.MinGW.mak

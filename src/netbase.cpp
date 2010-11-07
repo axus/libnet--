@@ -17,6 +17,7 @@ using std::cerr;
 using std::endl;
 using std::hex;
 using std::dec;
+using std::flush;
 using std::ios;
 using std::setfill;
 using std::setw;
@@ -175,7 +176,9 @@ size_t netbase::sendPacket( sock_t sd, netpacket &msg) {
         return -1;
     }
 
+#ifdef DEBUG_PACKET
     debugPacket( &msg);
+#endif
     //Trying to send on socket. TODO: repeat while (rv > 0 && totalSent < length)
     rv = send(sd, (const char*)msg.get_ptr(), (int)length, /*flags*/0);
 
@@ -186,8 +189,10 @@ size_t netbase::sendPacket( sock_t sd, netpacket &msg) {
     }
     
     //Record the message information, how much was sent
+#ifdef DEBUG
     debugLog << "#" << sd << " sent " << rv << "/" << length << " bytes" << endl;
-                
+#endif
+
     if (rv == 0) {
         debugLog << "Warning: Message not sent" << endl;
         return 0;
@@ -295,7 +300,10 @@ int netbase::removeSocket(sock_t sd) {
     }
 
     //Close the socket
+#ifdef DEBUG
     debugLog << "#" << sd << " removeSocket" << endl;
+#endif
+
 #ifdef _WIN32
     int rv = closesocket(sd);
 #else
@@ -320,7 +328,9 @@ int netbase::removeSocket(sock_t sd) {
 //Clean up data associated with socket
 void netbase::cleanSocket(sock_t sd) {
 
+#ifdef DEBUG
     debugLog << "#" << sd << " cleanSocket" << endl;
+#endif
 
     //Remove the callbacks associated with this socket
     unsetConPktCB(sd);
@@ -382,7 +392,9 @@ int netbase::readIncomingSockets() {
         vector<netpacket*> packets = readSockets();
         rv = fireCallbacks(packets);
     }
-    
+    //****DEBUG****
+    //cerr << "*";
+
     return rv;
 }
 
@@ -491,11 +503,11 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
             do {
                 bytes_read = callback( pkt, cbData);
                 conBufferIndex[con] += bytes_read;
-                
+#ifdef DEBUG
                 debugLog << "#" << con << " bytes_read=" << bytes_read
                     << " index=" << conBufferIndex[con] << " length="
                     << conBufferLength[con] << endl;
-                
+#endif
                 //Reset buffer if all data has been consumed
                 if (conBufferIndex[con] == conBufferLength[con]) {
                     conBufferIndex[con] = 0;
@@ -517,6 +529,7 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
                     pkt->ID = con;
                     *pkt_iter = pkt;
                 }
+                //cerr << "-";
             } while (bytes_read > 0 && conBufferIndex[con] < conBufferLength[con]);            
         }
     }
@@ -562,7 +575,9 @@ int netbase::recvSocket(sock_t sd, uint8_t* buffer)
         rv = recv( sd, (char*)(buffer + offset), NETMM_MAX_RECV_SIZE,  0 );
     
         if (rv == 0) {
+#ifdef DEBUG
             debugLog << "#" << sd << " disconnected from us" << endl;
+#endif
             removeSocket(sd);
             rs=0;   //Disconnected, nothing more to receive...
             //If we got anything on an earlier loop iteration, will need to process it.
@@ -585,7 +600,9 @@ int netbase::recvSocket(sock_t sd, uint8_t* buffer)
         }
     
         //rv was not 0 or SOCKET_ERROR, so it's the number of bytes received.
+#ifdef DEBUG
         debugLog << "#" << sd << " recv " << rv << " bytes" << endl;
+#endif
         offset += rv;
 
         //See if there is more to read
@@ -597,7 +614,9 @@ int netbase::recvSocket(sock_t sd, uint8_t* buffer)
     } while (rs > 0);  //Keep reading if select says there's something here
     
     if (offset > 0) {
+#ifdef DEBUG
         debugLog << "#" << sd << " Received " << offset << " bytes" << endl;
+#endif
     }
 
     return offset;  //Return total number of bytes received
@@ -614,14 +633,14 @@ size_t netbase::incomingCB( netpacket* pkt, void *CBD) {
         return -1;
     }
 
-    if (CBD == NULL) {
 #ifdef DEBUG
+    if (CBD == NULL) {
         std::cerr << "Null callback data on incomingCB!" << endl;
         std::cerr << "Packet on #" << pkt->ID << endl;
-#endif
     } else {
         ((netbase*)CBD)->debugLog << "#" << pkt->ID << " maxsize=" << pkt->get_maxsize() << endl;
     }
+#endif
 
     //Don't use any bytes from the packet...
     return 0;
@@ -689,7 +708,9 @@ netpacket *netbase::makePacket( sock_t con, uint8_t *buffer, size_t pkt_size)
 {
     netpacket *result = new netpacket( pkt_size, buffer, 0 );
     result->ID = con;
+#ifdef DEBUG_PACKET
     debugPacket(result);
+#endif
     
     return result;
 }
@@ -807,7 +828,10 @@ bool netbase::closeLog() const
 //Print contents of packet.  Wrap unprintable bytes in { }
 size_t netbase::debugPacket(const netpacket *pkt) const
 {
-
+    //Only in debug mode!
+#ifndef DEBUG
+    return 0;
+#endif
     if (pkt == NULL) {
         debugLog << "Null packet" << endl;
         return 0;
