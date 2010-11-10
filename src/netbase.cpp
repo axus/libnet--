@@ -365,6 +365,9 @@ bool netbase::disconnect( sock_t con) {
         debugLog << "#" << con << " was already disconnected" << endl;
     }
     
+    //Unset the connection specific callback
+    unsetConPktCB( con );
+    
     return result;
 }
 

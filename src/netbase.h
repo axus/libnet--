@@ -44,7 +44,7 @@ public:
     //Send packet "pkt" on socket "sd"
     size_t sendPacket( sock_t sd, netpacket &pkt);
 
-    //Close socket "sd"
+    //Close socket "sd", and remove connection specific callbacks
     bool disconnect( sock_t sd);
 
     //Add a callback for incoming packets on matching connection *c*
