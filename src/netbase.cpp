@@ -520,6 +520,10 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
                     debugLog << "#" << con << " ERROR! Read past end of packet "
                         << conBufferIndex[con] << "/" << conBufferLength[con] << endl;
                     cerr << "ERROR!: Read past end of packet." << endl;
+                    cerr << "bytes_read=" << bytes_read << " Index was "
+                        << (conBufferIndex[con] - bytes_read) << " first byte=0x"
+                        << hex << conBuffer[ (conBufferIndex[con] - bytes_read) ]
+                        << dec << endl;
                     
                     //Set index back to max length and quit
                     conBufferIndex[con] = conBufferLength[con];
