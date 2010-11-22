@@ -97,8 +97,8 @@ size_t send_response( netpacket* pkt, void *cb_data)
     http_response_pkt.ID = connection;
     
     //Send response packet on connection where we received a packet
-    result = response->server->sendPacket(connection, http_response_pkt);
-    cout << "s" << flush;
+    size_t bytes_sent = response->server->sendPacket(connection, http_response_pkt);
+    cout << "s" << bytes_sent << " " << flush;
     
     //Return number of bytes read (all of them)
     return result;
