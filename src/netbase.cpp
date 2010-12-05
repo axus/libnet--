@@ -5,7 +5,6 @@
 #include <iostream>
 #include <iomanip>
 
-//using std::set;
 using std::map;
 using std::pair;
 using std::ofstream;

@@ -5,10 +5,10 @@ SRCFILES    = netpacket.cpp netbase.cpp netclient.cpp netserver.cpp
 HEADERS     = netpacket.h netbase.h netclient.h netserver.h
 INCLUDES    = 
 LOGFILES    = network.log
-####DEBUG       = on
+###DEBUG       = on
 
 #Enable this for complete packet dumps.  Consider using Wireshark instead!
-####MOREFLAGS   = -DDEBUG_PACKET
+###MOREFLAGS   = -DDEBUG_PACKET
 
 #What to do for make install
 INSTALL_INC = $(HOME)/include
