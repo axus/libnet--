@@ -163,11 +163,14 @@ bool netbase::isClosed(sock_t sd) const {
     return (conSet.count(sd) == 0);
 }
 
-//Send packet on a socket descriptor 'sd'
-size_t netbase::sendPacket( sock_t sd, netpacket &msg) {
 
-    size_t rv;
-    const size_t length = msg.get_write();
+//TODO: non-blocking send!  It should keep one big "netpacket" that is sent from as requested
+
+//Send packet on a socket descriptor 'sd'
+int netbase::sendPacket( sock_t sd, netpacket &msg) {
+
+    int rv, readpos;
+    const int length = msg.get_write();
 
     //Check if connection number exists in conSet
     if ( conSet.find( sd ) == conSet.end() ) {
@@ -178,13 +181,22 @@ size_t netbase::sendPacket( sock_t sd, netpacket &msg) {
 #ifdef DEBUG_PACKET
     debugPacket( &msg);
 #endif
-    //Trying to send on socket. TODO: repeat while (rv > 0 && totalSent < length)
-    rv = send(sd, (const char*)msg.get_ptr(), (int)length, /*flags*/0);
 
-    //Return on socket errors
+/*
+    //Send packet data on socket.
+    rv = send(sd, (const char*)msg.get_ptr(), (int)length, 0);
     if (rv == (size_t)SOCKET_ERROR) {
         debugLog << "#" << sd << " Error:" << getSocketError() << endl;
         return -1;
+    }
+*/
+    //repeat send while (rv > 0 && totalSent < length)
+    for ( readpos=0, rv=0; readpos < length; readpos += rv) {
+        rv = send(sd, (const char*)(msg.get_ptr() + readpos), (int)length, 0);
+        if (rv == SOCKET_ERROR || rv==-1) {
+            debugLog << "#" << sd << " Error:" << getSocketError() << endl;
+            return -1;
+        }
     }
     
     //Record the message information, how much was sent
@@ -193,11 +205,11 @@ size_t netbase::sendPacket( sock_t sd, netpacket &msg) {
 #endif
 
     if (rv == 0) {
-        debugLog << "Warning: Message not sent" << endl;
+        debugLog << "Warning: No data sent" << endl;
         return 0;
     }
     if ((size_t)rv < length ) {
-        //TODO: send the rest of the message
+        //TODO: keep a netpacket to be read from on the next send
         debugLog << "Warning: Send incomplete" << endl;
     }
     

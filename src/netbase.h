@@ -42,7 +42,7 @@ public:
     virtual ~netbase();
 
     //Send packet "pkt" on socket "sd"
-    size_t sendPacket( sock_t sd, netpacket &pkt);
+    int sendPacket( sock_t sd, netpacket &pkt);
 
     //Close socket "sd", and remove connection specific callbacks
     bool disconnect( sock_t sd);
