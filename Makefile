@@ -11,8 +11,8 @@ LOGFILES    = network.log
 ###MOREFLAGS   = -DDEBUG_PACKET
 
 #What to do for make install
-INSTALL_INC = $(HOME)/include
-INSTALL_LIB = $(HOME)/lib
+INSTALL_INC = /usr/local/include
+INSTALL_LIB = /usr/local/lib
 
 #Build rules for a library in MinGW
 include lib.MinGW.mak
