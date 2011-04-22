@@ -27,7 +27,7 @@ using std::setw;
 
 //Constructor, specify the maximum client connections
 netbase::netbase(size_t max): sdMax(-1), conMax( max),
-    lastMessage(-1),  conCB(connectionCB), disCB(disconnectionCB)
+    lastMessage(-1),  conCB(connectionCB), disCB(disconnectionCB)            
 {
 
     //Assign callback data to this object
@@ -67,7 +67,8 @@ netbase::netbase(size_t max): sdMax(-1), conMax( max),
     }
     if (wsaData.wVersion != 0x0202)             //Don't accept lower versions
     { // wrong WinSock version!
-        debugLog << "Current winsock version " << hex << wsaData.wVersion << " unsupported" << endl << dec;
+        debugLog << "Current winsock version "
+            << hex << wsaData.wVersion << " unsupported" << endl << dec;
         WSACleanup (); // unload ws2_32.dll
         return;
     }
@@ -101,10 +102,12 @@ bool netbase::setConPktCB( sock_t c, netpacket::netPktCB cbFunc, void* cbData )
     bool result = true;
 
     //Map c -> cbFunc
-    result = packetCB_map.insert( std::map< sock_t, netpacket::netPktCB >::value_type( c, cbFunc)).second;
+    result = packetCB_map.insert(
+        std::map< sock_t, netpacket::netPktCB >::value_type( c, cbFunc)).second;
     
     //Map c -> cbData
-    result = result && packetCBD_map.insert( std::map< sock_t, void* >::value_type( c, cbData)).second;
+    result = result && packetCBD_map.insert(
+        std::map< sock_t, void* >::value_type( c, cbData)).second;
     
     //Return value: was callback and callback data inserted successfully?
     return result;
@@ -164,7 +167,8 @@ bool netbase::isClosed(sock_t sd) const {
 }
 
 
-//TODO: non-blocking send!  It should keep one big "netpacket" that is sent from as requested
+//TODO: non-blocking send!
+//  It should keep one big "netpacket" that is sent from as requested
 
 //Send packet on a socket descriptor 'sd'
 int netbase::sendPacket( sock_t sd, netpacket &msg) {
@@ -201,7 +205,8 @@ int netbase::sendPacket( sock_t sd, netpacket &msg) {
     
     //Record the message information, how much was sent
 #ifdef DEBUG
-    debugLog << "#" << sd << " sent " << rv << "/" << length << " bytes" << endl;
+    debugLog << "#" << sd << " sent "
+            << rv << "/" << length << " bytes" << endl;
 #endif
 
     if (rv == 0) {
@@ -321,7 +326,8 @@ int netbase::removeSocket(sock_t sd) {
     int rv = close(sd);
 #endif
     if (rv == SOCKET_ERROR) {
-        debugLog << "#" << sd << " Error closing socket: " << getSocketError() << endl;
+        debugLog << "#" << sd
+            << " Error closing socket: " << getSocketError() << endl;
     }    
 
     //Remove this socket from the list of connected sockets
@@ -432,7 +438,9 @@ vector<netpacket*> netbase::readSockets()
 
             //Resize connection buffer, if needed
             uint8_t* myBuffer=NULL;
-            while (bufferOffset + netbase::NETMM_MAX_RECV_SIZE > conBufferSize[con]) {
+            while (bufferOffset + netbase::NETMM_MAX_RECV_SIZE >
+                    conBufferSize[con])
+            {
                 //Increase connection buffer size
                 conBufferSize[con] = (conBufferSize[con] << 1);
                 
@@ -458,7 +466,8 @@ vector<netpacket*> netbase::readSockets()
                 conBufferLength[con] += rv;
                 
                 //Packet points at unconsumed buffer space
-                netpacket *pkt = makePacket( con, myBuffer + conBufferIndex[con], conBufferLength[con] - conBufferIndex[con]);
+                netpacket *pkt = makePacket( con, myBuffer + conBufferIndex[con],
+                    conBufferLength[con] - conBufferIndex[con]);
                 
                 //Set connection ID for packet
                 pkt->ID = con;
@@ -529,11 +538,13 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
                 } else if (conBufferLength[con] < conBufferIndex[con]) {
                     //Index should never go past length.
                     debugLog << "#" << con << " ERROR! Read past end of packet "
-                        << conBufferIndex[con] << "/" << conBufferLength[con] << endl;
-                    cerr << "ERROR!: Read past end of packet." << endl;
+                        << conBufferIndex[con] << "/" << conBufferLength[con]
+                        << endl;
+                    cerr << "ERROR! Read past end of packet." << endl;
                     cerr << "bytes_read=" << bytes_read << " Index was "
-                        << (int)(conBufferIndex[con] - bytes_read) << " first byte=0x"
-                        << hex << (int)conBuffer[ (conBufferIndex[con] - bytes_read) ]
+                        << (int)(conBufferIndex[con] - bytes_read)
+                        << " first byte=0x" << hex
+                        << (int)(conBuffer[ (conBufferIndex[con] - bytes_read) ])
                         << dec << endl;
                     
                     //Set index back to max length and quit
@@ -548,14 +559,18 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
                     *pkt_iter = pkt;
                 }
                 //cerr << "-";
-            } while (bytes_read > 0 && conBufferIndex[con] < conBufferLength[con]);            
+            } while (bytes_read > 0 && conBufferIndex[con] < conBufferLength[con]);
         }
     }
 
-    //Handle disconnected sockets (this can happen immediately after receiving bytes)
+    //Handle disconnected sockets
+    //  (this can happen immediately after receiving bytes)
     set<sock_t>::const_iterator con_iter;
     set<sock_t> closedSocketCopy( closedSocketSet );
-    for (con_iter = closedSocketCopy.begin(); con_iter != closedSocketCopy.end(); con_iter++) {
+    for (con_iter = closedSocketCopy.begin();
+         con_iter != closedSocketCopy.end();
+         con_iter++)
+    {
 
         con = *con_iter;
 
@@ -567,7 +582,8 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
     }
 
 
-    //Delete packets created by makePacket() in readSockets().  Create list of connections with unread data
+    //Delete packets created by makePacket() in readSockets().
+    //  Create list of connections with unread data
     for (pkt_iter = packets.begin(); pkt_iter != packets.end(); pkt_iter++) {
         delete (*pkt_iter);
     }
@@ -598,11 +614,13 @@ int netbase::recvSocket(sock_t sd, uint8_t* buffer)
 #endif
             removeSocket(sd);
             rs=0;   //Disconnected, nothing more to receive...
-            //If we got anything on an earlier loop iteration, will need to process it.
+            //If we got anything on an earlier loop iteration,
+            //  we will need to process it.
             break;
         }
         
-        //Check for reset socket, which we treat as normal disconnect since we are lazy
+        //Check for reset socket, which we treat as normal disconnect
+        //      since we are lazy
         #ifdef _WIN32
         if (WSAGetLastError() == WSAECONNRESET) {
             debugLog << "#" << sd << " reset" << endl;
@@ -640,7 +658,8 @@ int netbase::recvSocket(sock_t sd, uint8_t* buffer)
     return offset;  //Return total number of bytes received
 }
 
-//Default functions for function pointers.  Your replacement must return number of bytes consumed.
+//Default functions for function pointers.  Your replacement must return
+//  number of bytes consumed.
 size_t netbase::incomingCB( netpacket* pkt, void *CBD) {
   
     
@@ -656,7 +675,8 @@ size_t netbase::incomingCB( netpacket* pkt, void *CBD) {
         std::cerr << "Null callback data on incomingCB!" << endl;
         std::cerr << "Packet on #" << pkt->ID << endl;
     } else {
-        ((netbase*)CBD)->debugLog << "#" << pkt->ID << " maxsize=" << pkt->get_maxsize() << endl;
+        ((netbase*)CBD)->debugLog << "#" << pkt->ID << " maxsize="
+            << pkt->get_maxsize() << endl;
     }
 #endif
 
@@ -859,7 +879,8 @@ size_t netbase::debugPacket(const netpacket *pkt) const
     size_t read = pkt->get_read();
     size_t written = pkt->get_write();
     size_t size = pkt->get_maxsize();
-    debugLog << "#" << pkt->ID << " (w=" << written << "," << "r=" << read << "/" << size << ")" << endl;
+    debugLog << "#" << pkt->ID << " (w=" << written << ","
+             << "r=" << read << "/" << size << ")" << endl;
 
     const uint8_t *mybytes = pkt->get_ptr();
     uint8_t mybyte;

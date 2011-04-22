@@ -169,11 +169,15 @@ size_t netpacket::read(uint8_t *val, size_t size)
     return pos_read;
 }
 
-//short array
+//short array.. use network to host conversion
 size_t netpacket::read (uint16_t *val, size_t count)
 {
-    memcpy( val, data + pos_read, count*sizeof(uint16_t));
-    pos_read += count*sizeof(uint16_t);
+    size_t index;
+    for (index = 0; index < count; index++, pos_read += sizeof(uint16_t)) {
+        val[index] = ntohs(*(int16_t*)(data + pos_read));
+    }
+    //memcpy( val, data + pos_read, count*sizeof(uint16_t));
+    //pos_read += count*sizeof(uint16_t);
 
     return pos_read;
 }
@@ -318,7 +322,25 @@ size_t netpacket::append (const uint8_t *val, size_t size)
 {
     memcpy( data + pos_write, val, size); //copy all bytes
     pos_write += size;
-    return pos_write;        
+    return pos_write;
+}
+
+//Short array.  Use htons
+size_t netpacket::append (const uint16_t *val, size_t count)
+{
+    size_t index;
+    for (index = 0; index < count; index++, pos_write += sizeof(uint16_t)) {
+        *(int16_t*)(data + pos_write) = htons(val[index]);
+    }
+    return count;
+/*
+    size_t index;
+    for (index = 0; index < size; index++) {
+        ntohs(*(int16_t*)(data + pos_read));
+    memcpy( data + pos_write, val, size*2); //copy all bytes
+    pos_write += size*2;
+    return pos_write;
+*/
 }
 
 //TODO: wchar_t array
