@@ -1,10 +1,16 @@
 //Send HTTP request to Google, print the raw text
 //  (test program for libnet--)
-#include <netclient.h>
+#include <net--/netclient.h>
 #include <cstdio>
 #include <string>
 
+//STL
 using namespace std;
+
+//net__
+using net__::netbase;
+using net__::netclient;
+using net__::netpacket;
 
 //Sleep function
 #ifdef _WIN32
@@ -48,7 +54,7 @@ int main (int argc, char *argv[])
     //Create http GET packet        
     unsigned char buffer[netbase::NETMM_MAX_RECV_SIZE];
     size_t index=0;
-    strncpy((char*)(buffer + index), http_request.c_str(), http_request.length());
+    strncpy((char*)(buffer + index),http_request.c_str(),http_request.length());
     netpacket http_get_pkt( http_request.length(), buffer + index);
 
     //Connect to server on port 80

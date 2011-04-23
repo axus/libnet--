@@ -1,0 +1,18 @@
+test_client: Connect to server and send HTTP request.  This is a test program
+             for libnet--
+
+    test_client [server]
+        server      HTTP server to connect to.  Default is "localhost"
+
+REQUIREMENTS:
+    libnet--
+    libgcc
+    libstdc++
+
+BUILDING:
+    Start in the libnet-- directory.
+        make
+        make install
+        cd test_client
+        make
+

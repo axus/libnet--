@@ -6,6 +6,7 @@
 //
 //  netpacket function implementations
 //
+using net__::netpacket;
 
 //Constructors are defined in header
 

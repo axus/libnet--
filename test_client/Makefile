@@ -1,9 +1,10 @@
 # Test of libnet-- netclient class.  Connect to HTTP and sent GET request.
+#
 
 BIN         = test_client.exe
 SRCFILES    = test_client.cpp
-LIBS        = -L../build -lnet-- -lwsock32
-INCLUDES    = -I../src
+LIBS        = -L/usr/local/lib -lnet-- -lwsock32
+INCLUDES    = -I/usr/local/include
 LOGFILES    = network.log
 ###DEBUG       = on
 

@@ -1,11 +1,17 @@
 //Test program for "netserver" class
 //  Wait for incoming clients, send HTML to any message
 
-#include <netserver.h>
+#include <net--/netserver.h>
 #include <cstdio>
 #include <string>
 
+//STL namespace
 using namespace std;
+
+//net-- namespace
+using net__::netbase;
+using net__::netserver;
+using net__::netpacket;
 
 //Sleep function
 #ifdef _WIN32
@@ -47,7 +53,8 @@ X-XSS-Protection: 1; mode=block\
 Transfer-Encoding: chunked\
 \r\n\
 81\r\n\
-<!doctype html><html><head><title>NOPAGE</title></head><body>NOPAGE</body></html>";
+<!doctype html><html><head><title>NOPAGE</title></head><body>NOPAGE</body>\
+</html>";
 
     //Create server for up to 10 clients
     netserver Server(10);
@@ -57,7 +64,8 @@ Transfer-Encoding: chunked\
     strncpy( buffer, http_response.c_str(), http_response.length() + 1);
     
     //Set connection callback
-    serverResponse response_data = { &Server , buffer, http_response.length() + 1};
+    serverResponse response_data = {
+        &Server , buffer, http_response.length() + 1 };
     Server.setConnectCB( print_connect, &response_data);
 
     //Set disconnection callback
@@ -97,7 +105,8 @@ size_t send_response( netpacket* pkt, void *cb_data)
     http_response_pkt.ID = connection;
     
     //Send response packet on connection where we received a packet
-    size_t bytes_sent = response->server->sendPacket(connection, http_response_pkt);
+    size_t bytes_sent =
+        response->server->sendPacket(connection, http_response_pkt);
     cout << "s" << bytes_sent << " " << flush;
     
     //Return number of bytes read (all of them)

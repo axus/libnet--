@@ -1,9 +1,10 @@
-# Test of libnet-- netserver class.  Listen on HTTP port, send canned HTML response.
+# Test of libnet-- netserver class.  Listen on HTTP port,
+#   send a canned HTML response.
 
 BIN         = test_http.exe
 SRCFILES    = test_http.cpp
-LIBS        = -L../build -lnet-- -lwsock32
-INCLUDES    = -I../src
+LIBS        = -L/usr/local/lib -lnet-- -lwsock32
+INCLUDES    = -I/usr/local/include
 LOGFILES    = network.log
 ###DEBUG       = on
 

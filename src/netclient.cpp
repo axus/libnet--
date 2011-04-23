@@ -1,13 +1,19 @@
 #include "netclient.h"
 
+//STL namespace
 using std::string;
 using std::endl;
+
+//net__ namespace
+using net__::netbase;
+using net__::netclient;
 
 //
 //  netclient function implementations
 //
 
-netclient::netclient( size_t max ) : netbase( max) //Set maximum connections
+// Constructor: Set maximum connections
+netclient::netclient( size_t max ) : netbase( max)
 {
     openLog();
     debugLog << "===Starting client===" << endl;
@@ -17,6 +23,7 @@ netclient::netclient( size_t max ) : netbase( max) //Set maximum connections
     connTimeout.tv_usec = 0;
 }
 
+// Destructor
 netclient::~netclient()
 {
     openLog();
@@ -26,6 +33,7 @@ netclient::~netclient()
     //Now the base class destructor is invoked by C++
 }
 
+// Set timeout for initial connection
 bool netclient::setConnTimeout( int seconds, int microsec)
 {
     //TODO: make sure the input is reasonable
@@ -38,7 +46,8 @@ bool netclient::setConnTimeout( int seconds, int microsec)
 
 
 //connect to server "address:port", return socket number
-sock_t netclient::doConnect(const string& serverAddress, uint16_t port, uint16_t lport)
+sock_t netclient::doConnect(const string& serverAddress,
+                            uint16_t port, uint16_t lport)
 {
 	struct	sockaddr_in sad;   //Server address struct
 	sock_t sdServer;            //socket descriptor of connection
@@ -59,12 +68,21 @@ sock_t netclient::doConnect(const string& serverAddress, uint16_t port, uint16_t
     if (unblockSocket( sdServer) < 0)
         return -1;
 
+    //
     //Load connection information
-	memset((char *)&sad,0,sizeof(sad));    // clear sockaddr structure
-	sad.sin_family = AF_INET;	          //set family to Internet
-	sad.sin_port = htons(port);            //Set port (network int16_t format)
-	sad.sin_addr.s_addr = inet_addr(serverAddress.c_str()); //Convert the server address
-
+    //
+    
+    // clear sockaddr structure
+	memset((char *)&sad,0,sizeof(sad));
+	
+	//Set family to Internet
+	sad.sin_family = AF_INET;
+	
+	//Set port (network int16_t format)
+	sad.sin_port = htons(port);
+		
+	//Convert the server address
+	sad.sin_addr.s_addr = inet_addr(serverAddress.c_str());
 
     //If not a numeric address, resolve it
 	if (sad.sin_addr.s_addr == INADDR_NONE)
@@ -72,9 +90,13 @@ sock_t netclient::doConnect(const string& serverAddress, uint16_t port, uint16_t
         host = NULL;    //...
         host = gethostbyname(serverAddress.c_str());
         if (host == NULL) {
+          
+            //Set error message
             lastError = string("Unknown host ") + serverAddress.c_str();
             debugLog << lastError << endl;
-            closeSocket(sdServer);                     //Cleanup the socket
+            
+            //Cleanup the socket
+            closeSocket(sdServer);
             return -1;
         }
         memcpy( &sad.sin_addr, host->h_addr_list[0], host->h_length);
@@ -82,7 +104,8 @@ sock_t netclient::doConnect(const string& serverAddress, uint16_t port, uint16_t
 
 
     //Connect to the server
-	rv = connect(sdServer, (const struct sockaddr*)&sad, sizeof( struct sockaddr_in));
+	rv = connect(sdServer, (const struct sockaddr*)&sad,
+                 sizeof( struct sockaddr_in));
 
     //Special case for blocking sockets
 	if (rv == SOCKET_ERROR) {
@@ -91,7 +114,8 @@ sock_t netclient::doConnect(const string& serverAddress, uint16_t port, uint16_t
         FD_ZERO(&sdConnSet);
         FD_SET( (unsigned int)sdServer, &sdConnSet);
         if (WSAGetLastError() == WSAEWOULDBLOCK) {
-             rv = select(sdMax+1, (fd_set *) 0, &sdConnSet, (fd_set *) 0, &connTimeout);
+             rv = select(sdMax+1, (fd_set *) 0, &sdConnSet,
+                         (fd_set *) 0, &connTimeout);
              if (rv == 0) {
                 debugLog << "Timeout to " << serverAddress << endl;
                 lastError = "Timed out: " + serverAddress;
@@ -101,18 +125,31 @@ sock_t netclient::doConnect(const string& serverAddress, uint16_t port, uint16_t
         #endif
     }
     
+    //Check for error
     if (rv == SOCKET_ERROR) {
+      
+        //Update error message
         debugLog << "   " << getSocketError() << endl;
         lastError = string("Could not connect to ") + serverAddress;
         debugLog << lastError << endl;
-        closeSocket(sdServer);                     //Cleanup the socket
-        return SOCKET_ERROR;    //Some problem connecting to the server
+        
+        //Cleanup the socket
+        closeSocket(sdServer);
+        
+        //Some problem connecting to the server
+        return SOCKET_ERROR;    
     }
     else if (rv > 0) {
-        int namelen = sizeof( struct sockaddr_in);  //namelen must be an "int"
+      
+        //namelen must be an "int"
+        int namelen = sizeof( struct sockaddr_in);
         getsockname( sdServer, (struct sockaddr*)&sad, &namelen);
-        debugLog << "#" << sdServer << " connected @ " << serverAddress << ":" << port
-        << " from " << inet_ntoa(sad.sin_addr) << ":" << ntohs(sad.sin_port) << endl;
+        
+        //Write to debug log
+        debugLog << "#" << sdServer << " connected @ "
+                 << serverAddress << ":" << port
+                << " from " << inet_ntoa(sad.sin_addr) 
+                << ":" << ntohs(sad.sin_port) << endl;
 
         //Add to sdSet
         conSet.insert(sdServer);

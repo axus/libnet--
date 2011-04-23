@@ -2,10 +2,14 @@
 //netServer: listens for incoming connections, handles incoming data.
 //  Derived your class from this, and override handleIncoming( netpacket *pkt)
 
+//Header
 #include "netserver.h"
+
+//C++ IO
 #include <iostream>
 #include <iomanip>
 
+//STL namespace
 using std::cerr;
 using std::endl;
 using std::hex;
@@ -13,6 +17,10 @@ using std::dec;
 using std::ios;
 using std::setfill;
 using std::setw;
+
+//net__ namespace
+using net__::netpacket;
+using net__::netserver;
 
 //
 //  Function implementations
@@ -23,7 +31,8 @@ using std::setw;
 netserver::netserver(unsigned int max): netbase( max), ready(false),
     serverPort(-1), sdListen(INVALID_SOCKET)
 {
-    //Everything else should have been taken care of by the netbase constructor
+    //Everything else should have been taken care of by
+    //     the netbase constructor
     openLog();
     debugLog << "===Starting server===" << endl;
     FD_ZERO( &listenSet);
@@ -64,20 +73,25 @@ sock_t netserver::openPort(int16_t port) {
 
     if (unblockSocket( sd) < 0)
         return -1;
-
-	memset((char *)&sad,0,sizeof(sad)); // clear sockaddr structure
-	sad.sin_family = AF_INET;	  // set family to Internet
-	sad.sin_addr.s_addr = INADDR_ANY; // set the local IP address
+        
+    // clear sockaddr structure
+	memset((char *)&sad,0,sizeof(sad));
+	  // set family to Internet
+	sad.sin_family = AF_INET;
+	  // set the local IP address
+	sad.sin_addr.s_addr = INADDR_ANY;
 	sad.sin_port = htons(port);
 
+    //Bind to the socket
 	rv = bind(sd, (sockaddr*)&sad, sizeof( struct sockaddr_in));
 	if (rv == -1) {
         debugLog << "#" << sd << " cannot bind localhost:" << port << endl;
         closeSocket(sd);
         return -1;    //Cannot bind socket
     }
-
-    rv  = listen(sd, conMax);    //List on port... allow MAX_CON clients
+    
+    //List on port... allow MAX_CON clients
+    rv  = listen(sd, conMax);
     if (rv == -1) {
         debugLog << "#" << sd << " cannot listen on " << port << endl;
         closeSocket(sd);
@@ -105,9 +119,11 @@ void netserver::closePort()
 {
     openLog();
     if (ready)
-        debugLog << "#" << sdListen << " Server port " << serverPort << " closing." << endl << endl;
+        debugLog << "#" << sdListen << " Server port " << serverPort
+                 << " closing." << endl << endl;
     else
-        debugLog << "#" << sdListen << " Warning: Closing port, may already be closed!" << endl;
+        debugLog << "#" << sdListen
+                  << " Warning: Closing port, may already be closed!" << endl;
 
     ready = false;
     
@@ -188,7 +204,8 @@ int netserver::checkPort()
     {
         //Something pending on a socket
 
-        //Check the incoming server socket (dedicated to listening for new connections)
+        //Check the incoming server socket
+        //  (dedicated to listening for new connections)
         if (FD_ISSET(sdListen, &listenSet)) {
             sd = acceptConnection();
             
@@ -216,13 +233,15 @@ sock_t netserver::acceptConnection()
     int addr_len = sizeof(struct sockaddr_in);
 
     openLog();
-
-    sd = accept(sdListen, (sockaddr*)&addr, &addr_len);        //Non blocking accept call
+    
+    //Non blocking accept call
+    sd = accept(sdListen, (sockaddr*)&addr, &addr_len); 
     if (sd == (sock_t)INVALID_SOCKET) {
         debugLog << "Client connection failed:" << getSocketError() << endl;
 
+        //Cleanup the listen port if its not already
         if (sdListen != (sock_t)INVALID_SOCKET) {
-            closeSocket(sdListen);  //Cleanup the listen port
+            closeSocket(sdListen);
         }
         
         //Don't give up, try to restart it
@@ -233,10 +252,14 @@ sock_t netserver::acceptConnection()
         return -1;
     }
 
+    //Prevent more than conMax connections
     if (conSet.size() >= conMax) {
-        debugLog << "Connection refused, maximum " << conMax << " connections" << endl;
+        debugLog << "Connection refused, maximum "
+                 << conMax << " connections" << endl;
         return -1;
     }
+    
+    
     debugLog << "#" << sd
             << " connected!  address=" << inet_ntoa( addr.sin_addr )
             << "  port=" << ntohs(addr.sin_port) << endl;

@@ -1,10 +1,14 @@
 // netbase: Create connections, send and receive data through them
-//      Assign callbacks for "netpacket"s that return true for specified function
+//      Assign callbacks for netpackets that return true for specified function
 
+//net__
 #include "netbase.h"
+
+//C++ IO
 #include <iostream>
 #include <iomanip>
 
+//STL namespace
 using std::map;
 using std::pair;
 using std::ofstream;
@@ -20,6 +24,10 @@ using std::flush;
 using std::ios;
 using std::setfill;
 using std::setw;
+
+//net__ namespace
+using net__::netbase;
+using net__::netpacket;
 
 #ifdef _MSC_VER
 #define snprintf _snprintf_s
@@ -103,7 +111,7 @@ bool netbase::setConPktCB( sock_t c, netpacket::netPktCB cbFunc, void* cbData )
 
     //Map c -> cbFunc
     result = packetCB_map.insert(
-        std::map< sock_t, netpacket::netPktCB >::value_type( c, cbFunc)).second;
+        std::map< sock_t, netpacket::netPktCB >::value_type(c, cbFunc)).second;
     
     //Map c -> cbData
     result = result && packetCBD_map.insert(
@@ -168,9 +176,9 @@ bool netbase::isClosed(sock_t sd) const {
 
 
 //TODO: non-blocking send!
-//  It should keep one big "netpacket" that is sent from as requested
+//  It should keep one big buffer that is send from asynchronously
 
-//Send packet on a socket descriptor 'sd'
+//Send packet on a socket descriptor 'sd'.  Waits until send() completes
 int netbase::sendPacket( sock_t sd, netpacket &msg) {
 
     int rv, readpos;
@@ -186,14 +194,6 @@ int netbase::sendPacket( sock_t sd, netpacket &msg) {
     debugPacket( &msg);
 #endif
 
-/*
-    //Send packet data on socket.
-    rv = send(sd, (const char*)msg.get_ptr(), (int)length, 0);
-    if (rv == (size_t)SOCKET_ERROR) {
-        debugLog << "#" << sd << " Error:" << getSocketError() << endl;
-        return -1;
-    }
-*/
     //repeat send while (rv > 0 && totalSent < length)
     for ( readpos=0, rv=0; readpos < length; readpos += rv) {
         rv = send(sd, (const char*)(msg.get_ptr() + readpos), (int)length, 0);
@@ -429,7 +429,7 @@ vector<netpacket*> netbase::readSockets()
     std::set<sock_t> socketSet = conSet;
 
     //Check all connections in conSet
-    for (con_iter = socketSet.begin(); con_iter != socketSet.end(); con_iter++) {
+    for (con_iter = socketSet.begin(); con_iter!=socketSet.end(); con_iter++) {
         con = *con_iter;
         if (FD_ISSET( con, &sdSet)) {
           
@@ -466,7 +466,7 @@ vector<netpacket*> netbase::readSockets()
                 conBufferLength[con] += rv;
                 
                 //Packet points at unconsumed buffer space
-                netpacket *pkt = makePacket( con, myBuffer + conBufferIndex[con],
+                netpacket *pkt = makePacket(con,myBuffer + conBufferIndex[con],
                     conBufferLength[con] - conBufferIndex[con]);
                 
                 //Set connection ID for packet
@@ -537,14 +537,15 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
                     conBufferLength[con] = 0;
                 } else if (conBufferLength[con] < conBufferIndex[con]) {
                     //Index should never go past length.
-                    debugLog << "#" << con << " ERROR! Read past end of packet "
+                    debugLog << "#" << con
+                        << " ERROR! Read past end of packet "
                         << conBufferIndex[con] << "/" << conBufferLength[con]
                         << endl;
                     cerr << "ERROR! Read past end of packet." << endl;
                     cerr << "bytes_read=" << bytes_read << " Index was "
                         << (int)(conBufferIndex[con] - bytes_read)
                         << " first byte=0x" << hex
-                        << (int)(conBuffer[ (conBufferIndex[con] - bytes_read) ])
+                        << (int)(conBuffer[(conBufferIndex[con] - bytes_read)])
                         << dec << endl;
                     
                     //Set index back to max length and quit
@@ -559,7 +560,8 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
                     *pkt_iter = pkt;
                 }
                 //cerr << "-";
-            } while (bytes_read > 0 && conBufferIndex[con] < conBufferLength[con]);
+            } while (bytes_read > 0 &&
+                conBufferIndex[con] < conBufferLength[con]);
         }
     }
 
@@ -630,7 +632,7 @@ int netbase::recvSocket(sock_t sd, uint8_t* buffer)
         #endif
         
         if (rv == SOCKET_ERROR) {
-            debugLog << "#" << sd << " recv Error: " << getSocketError() << endl;
+            debugLog << "#" << sd << " recv Error: "<< getSocketError()<< endl;
             removeSocket(sd);
             return -1;
         }
