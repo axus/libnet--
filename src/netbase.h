@@ -49,9 +49,12 @@ namespace net__ {
     
         //Close socket "sd", and remove connection specific callbacks
         bool disconnect( sock_t sd);
-    
+
         //Add a callback for incoming packets on matching connection *c*
         bool setConPktCB( sock_t sd, netpacket::netPktCB cbFunc, void *cbData );
+            //  Packet callback functions must return the number of bytes
+            //  read from the packet.  However, if the callback function
+            //  disconnects from remote host, it should instead return 0.
         
         //Remove callbacks for connection *c*
         bool unsetConPktCB( sock_t c);

@@ -30,7 +30,10 @@ namespace net__ {
             
             //netPktCB: packet callback function type
             typedef size_t (*netPktCB)( netpacket* pkt, void *cb_data);
-    
+            //  Packet callback functions must return the number of bytes
+            //  read from the packet.  However, if the callback function
+            //  disconnects from remote host, it should instead return 0.
+
     	   //Constructor: Allocates 1024 bytes, ready to read or write.
             netpacket( ):
                     maxsize(DEFAULT_PACKET_SIZE), pos_read(0), pos_write(0),

@@ -444,13 +444,21 @@ vector<netpacket*> netbase::readSockets()
                 //Increase connection buffer size
                 conBufferSize[con] = (conBufferSize[con] << 1);
                 
-                //Copy old buffer to bigger buffer
-                myBuffer = new uint8_t[conBufferSize[con]];
-                memcpy( myBuffer, conBuffer[con], bufferOffset);
+                //Increase memory allocation
+                if (conBufferSize[con] == 0) {
+                    //Buffer was unallocated... better create one.
+                    conBufferSize[con] = netbase::NETMM_MAX_RECV_SIZE;
+                    conBuffer[con] = new uint8_t[conBufferSize[con]];
+                } else {
                 
-                //Delete old buffer
-                delete conBuffer[con];
-                conBuffer[con] = myBuffer;
+                    //Copy old buffer to bigger buffer
+                    myBuffer = new uint8_t[conBufferSize[con]];
+                    memcpy( myBuffer, conBuffer[con], bufferOffset);
+                    
+                    //Delete old buffer
+                    delete conBuffer[con];
+                    conBuffer[con] = myBuffer;
+                }
             }
             
             //Point to connection buffer
@@ -459,7 +467,7 @@ vector<netpacket*> netbase::readSockets()
             //Copy the incoming bytes to myBuffer + offset
             rv = recvSocket( con, (myBuffer + bufferOffset) );
 
-            //Point packet object at received bytes
+            //Point the packet object at new received bytes
             if ( rv > 0 ) {
 
                 //Keep track of buffer offsets
@@ -474,6 +482,11 @@ vector<netpacket*> netbase::readSockets()
                                 
                 //Add packet to the queue
                 packets.push_back( pkt);
+
+                //DEBUG
+                debugLog << "#" << con << " Added packet size=" 
+                        << conBufferLength[con] - conBufferIndex[con] << endl;
+
             }
         }
     }
@@ -541,7 +554,9 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
                         << " ERROR! Read past end of packet "
                         << conBufferIndex[con] << "/" << conBufferLength[con]
                         << endl;
-                    cerr << "ERROR! Read past end of packet." << endl;
+                    cerr << "#" << con << " ERROR! Read past end of packet "
+                        << conBufferIndex[con] << "/" << conBufferLength[con]
+                        << endl;
                     cerr << "bytes_read=" << bytes_read << " Index was "
                         << (int)(conBufferIndex[con] - bytes_read)
                         << " first byte=0x" << hex
@@ -562,6 +577,8 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
                 //cerr << "-";
             } while (bytes_read > 0 &&
                 conBufferIndex[con] < conBufferLength[con]);
+        } else {
+            debugLog << "#" << con << " no connection callback!" << endl;
         }
     }
 
@@ -574,7 +591,9 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
          con_iter++)
     {
 
+
         con = *con_iter;
+        debugLog << "#" << con << " disconnect callback" << endl;
 
         //Disconnection callback
         disCB( con, disCBD);

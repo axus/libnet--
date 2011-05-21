@@ -334,14 +334,6 @@ size_t netpacket::append (const uint16_t *val, size_t count)
         *(int16_t*)(data + pos_write) = htons(val[index]);
     }
     return count;
-/*
-    size_t index;
-    for (index = 0; index < size; index++) {
-        ntohs(*(int16_t*)(data + pos_read));
-    memcpy( data + pos_write, val, size*2); //copy all bytes
-    pos_write += size*2;
-    return pos_write;
-*/
 }
 
 //TODO: wchar_t array

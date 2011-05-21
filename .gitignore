@@ -3,3 +3,4 @@ mk
 *.a
 *.exe
 *.log
+docs/html
