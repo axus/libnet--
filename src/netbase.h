@@ -78,7 +78,7 @@ namespace net__ {
         bool openLog() const;     //will open the debugLog, if not open already
         bool closeLog() const;    //close the debugLog if open
         size_t debugPacket(const netpacket *pkt) const;
-    
+        
         //
         //Public data members
         //
@@ -161,10 +161,13 @@ namespace net__ {
         //Receive data on a socket to a buffer
         int recvSocket(sock_t sd, uint8_t* buffer);
         
-        //Closes socket, sets it to INVALID_SOCKET
+        //Socket is finished, handle cleanup at end of processing loop
+        void pendDisconnect(sock_t sd);
+        
+        //Close socket, free buffers associated with connection
         virtual int closeSocket(sock_t sd);
         
-        //Erase socket descriptor from conSet
+        //Closes socket, sets it to INVALID_SOCKET
         int removeSocket(sock_t sd);
         
         //Free buffer associated with connection

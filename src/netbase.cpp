@@ -316,10 +316,6 @@ int netbase::removeSocket(sock_t sd) {
     }
 
     //Close the socket
-#ifdef DEBUG
-    debugLog << "#" << sd << " removeSocket" << endl;
-#endif
-
 #ifdef _WIN32
     int rv = closesocket(sd);
 #else
@@ -331,15 +327,31 @@ int netbase::removeSocket(sock_t sd) {
     }    
 
     //Remove this socket from the list of connected sockets
+    //  Should have been done already!
     conSet.erase(sd);
     if (FD_ISSET((unsigned int)sd, &sdSet)) {
         FD_CLR((unsigned int)sd, &sdSet);
     }
     
+    return rv;
+}
+
+//Remember this socket and disconnect it later.  Remove from sdSet and conSet!
+void netbase::pendDisconnect(sock_t sd)
+{
+#ifdef DEBUG
+    debugLog << "#" << sd << " pendDisconnect" << endl;
+#endif
+
+    //Remove this socket from the list of connected sockets
+    conSet.erase(sd);
+    if (FD_ISSET((unsigned int)sd, &sdSet)) {
+        FD_CLR((unsigned int)sd, &sdSet);
+    }
+
     //Remember to free the buffer for this socket later
     closedSocketSet.insert(sd);
-    
-    return rv;
+
 }
 
 //Clean up data associated with socket
@@ -566,7 +578,8 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
                     //Set index back to max length and quit
                     conBufferIndex[con] = conBufferLength[con];
                 } else if (bytes_read > 0) {
-                    //Make a new packet, run the callback again
+                    //Make a new packet, run the callback again.
+                    //  There may be more messages after the single one read in
                     delete pkt;
                     pkt = makePacket(con,
                         conBuffer[con] + conBufferIndex[con],
@@ -598,8 +611,8 @@ int netbase::fireCallbacks( vector<netpacket*>& packets) {
         //Disconnection callback
         disCB( con, disCBD);
         
-        //Clean up the socket associated data (if removeSocket was called)
-        cleanSocket(con);
+        //Actually close the socket, and clean up associated data
+        closeSocket(con);
     }
 
 
@@ -633,7 +646,7 @@ int netbase::recvSocket(sock_t sd, uint8_t* buffer)
 #ifdef DEBUG
             debugLog << "#" << sd << " disconnected from us" << endl;
 #endif
-            removeSocket(sd);
+            pendDisconnect(sd);
             rs=0;   //Disconnected, nothing more to receive...
             //If we got anything on an earlier loop iteration,
             //  we will need to process it.
@@ -645,14 +658,14 @@ int netbase::recvSocket(sock_t sd, uint8_t* buffer)
         #ifdef _WIN32
         if (WSAGetLastError() == WSAECONNRESET) {
             debugLog << "#" << sd << " reset" << endl;
-            removeSocket(sd);
+            pendDisconnect(sd);
             return 0;
         }
         #endif
         
         if (rv == SOCKET_ERROR) {
             debugLog << "#" << sd << " recv Error: "<< getSocketError()<< endl;
-            removeSocket(sd);
+            pendDisconnect(sd);
             return -1;
         }
     

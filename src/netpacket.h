@@ -15,6 +15,9 @@
     #define sock_t int
 #endif
 
+//getVersion() should match this value!
+#define NETPACKET_VERSION 0x0200
+
 namespace net__ {
 
     //Class for generic byte array to be sent
@@ -72,6 +75,9 @@ namespace net__ {
             virtual ~netpacket();
     
         //Info
+            //Return library version
+            static size_t getVersion();
+
             sock_t ID;   //Associate packet with socket
             
             //Return bytes written to packet

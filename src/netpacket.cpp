@@ -18,6 +18,12 @@ netpacket::~netpacket() {
     }
 }
 
+//Get version of libnet--
+size_t netpacket::getVersion()
+{
+    return NETPACKET_VERSION;
+}
+
 //Adjust position, for reusing packet
 void netpacket::set_read( size_t p) { pos_read = p;}
 void netpacket::set_write( size_t p) { pos_write = p;}
