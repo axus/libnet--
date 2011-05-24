@@ -664,7 +664,14 @@ int netbase::recvSocket(sock_t sd, uint8_t* buffer)
 
         //See if there is more to read
         sds2 = sds;
+        
+        //FIRST argument is highest socket descriptor + 1
+        //SECOND argument is FD_SET containing socket(s) to read
+        //THIRD argument is FD_SET containing socket(s) to write
+        //FOURTH argument is FD_SET containing out-of-band socket data
+        //FIFTH argument is timeout until select stops blocking
         rs = select(sd+1, &sds2, NULL, NULL, &timeout); 
+        
         if (rs == SOCKET_ERROR) {   //Socket select failed
             debugLog << "select() error:"  << getSocketError() << endl;
         }
